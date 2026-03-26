@@ -7,16 +7,40 @@ const {
 
 const respostas = new Map();
 
+// FUNÇÃO PRA ENVIAR O PAINEL (!recrutamento)
+async function enviarPainel(channel) {
+  const embed = new EmbedBuilder()
+    .setColor('#FFD700')
+    .setTitle('⚓ Recrutamento da Tripulação')
+    .setDescription('Clique no botão abaixo para aplicar!')
+    .addFields(
+      { name: '📋 Requisitos', value: '• Ser ativo\n• Respeitar regras' },
+      { name: '⏳ Processo', value: 'Staff irá analisar sua aplicação.' }
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('aplicar')
+      .setLabel('📩 Aplicar')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  await channel.send({ embeds: [embed], components: [row] });
+}
+
 module.exports = (client) => {
 
+  // BOTÕES
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
+    // CLICOU EM APLICAR
     if (interaction.customId === 'aplicar') {
       respostas.set(interaction.user.id, []);
       await interaction.reply({ content: 'Qual seu Nick?', ephemeral: true });
     }
 
+    // APROVAR
     if (interaction.customId === 'aprovar') {
       const id = interaction.message.content;
       const membro = await interaction.guild.members.fetch(id);
@@ -28,18 +52,22 @@ module.exports = (client) => {
 
       await membro.roles.add(cargo);
       await interaction.update({ content: '✅ Aprovado', components: [] });
-      membro.send('🎉 Você foi aprovado!');
+
+      membro.send('🎉 Você foi aprovado na crew!');
     }
 
+    // RECUSAR
     if (interaction.customId === 'recusar') {
       const id = interaction.message.content;
       const membro = await interaction.guild.members.fetch(id);
 
       await interaction.update({ content: '❌ Recusado', components: [] });
+
       membro.send('❌ Você foi recusado.');
     }
   });
 
+  // PERGUNTAS
   client.on('messageCreate', async (msg) => {
     if (!respostas.has(msg.author.id)) return;
 
@@ -87,3 +115,6 @@ Plataforma: ${userRespostas[3]}
   });
 
 };
+
+// EXPORTA A FUNÇÃO DO PAINEL
+module.exports.enviarPainel = enviarPainel;
