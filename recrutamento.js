@@ -2,119 +2,157 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require('discord.js');
-
-const respostas = new Map();
-
-// FUNÇÃO PRA ENVIAR O PAINEL (!recrutamento)
-async function enviarPainel(channel) {
-  const embed = new EmbedBuilder()
-    .setColor('#FFD700')
-    .setTitle('⚓ Recrutamento da Tripulação')
-    .setDescription('Clique no botão abaixo para aplicar!')
-    .addFields(
-      { name: '📋 Requisitos', value: '• Ser ativo\n• Respeitar regras' },
-      { name: '⏳ Processo', value: 'Staff irá analisar sua aplicação.' }
-    );
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('aplicar')
-      .setLabel('📩 Aplicar')
-      .setStyle(ButtonStyle.Success)
-  );
-
-  await channel.send({ embeds: [embed], components: [row] });
-}
 
 module.exports = (client) => {
 
-  // BOTÕES
+  // ===== ENVIAR PAINEL =====
+  module.exports.enviarPainel = async (channel) => {
+
+    const embed = new EmbedBuilder()
+      .setColor('#FFD700')
+      .setTitle('⚓ Recrutamento da Tripulação')
+      .setDescription(
+        'Quer fazer parte da nossa tripulação?\nClique no botão abaixo e preencha o formulário!\n\n' +
+        '📋 **Requisitos**\n' +
+        '• Ser ativo\n' +
+        '• Ter bom comportamento\n' +
+        '• Seguir as regras do servidor\n\n' +
+        '⏳ **Processo**\n' +
+        'Sua candidatura será analisada pela staff e você receberá uma resposta em breve.'
+      );
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('aplicar')
+        .setLabel('📩 Aplicar')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    channel.send({ embeds: [embed], components: [row] });
+  };
+
+  // ===== INTERAÇÕES =====
   client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
 
-    // CLICOU EM APLICAR
-    if (interaction.customId === 'aplicar') {
-      respostas.set(interaction.user.id, []);
-      await interaction.reply({ content: 'Qual seu Nick?', ephemeral: true });
+    // BOTÃO APLICAR
+    if (interaction.isButton() && interaction.customId === 'aplicar') {
+
+      const modal = new ModalBuilder()
+        .setCustomId('form_recrutamento')
+        .setTitle('📋 Formulário');
+
+      const nick = new TextInputBuilder()
+        .setCustomId('nick')
+        .setLabel('Qual seu nick?')
+        .setStyle(TextInputStyle.Short);
+
+      const idade = new TextInputBuilder()
+        .setCustomId('idade')
+        .setLabel('Qual sua idade?')
+        .setStyle(TextInputStyle.Short);
+
+      const bounty = new TextInputBuilder()
+        .setCustomId('bounty')
+        .setLabel('Quanto de bounty você tem?')
+        .setStyle(TextInputStyle.Short);
+
+      const plataforma = new TextInputBuilder()
+        .setCustomId('plataforma')
+        .setLabel('Joga em qual plataforma?')
+        .setStyle(TextInputStyle.Short);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(nick),
+        new ActionRowBuilder().addComponents(idade),
+        new ActionRowBuilder().addComponents(bounty),
+        new ActionRowBuilder().addComponents(plataforma)
+      );
+
+      return interaction.showModal(modal);
     }
 
-    // APROVAR
-    if (interaction.customId === 'aprovar') {
-      const id = interaction.message.content;
-      const membro = await interaction.guild.members.fetch(id);
+    // RESPOSTA DO FORM
+    if (interaction.isModalSubmit() && interaction.customId === 'form_recrutamento') {
 
-      let cargo = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Membros da crew');
-      if (!cargo) {
-        cargo = await interaction.guild.roles.create({ name: '⃤⃟⃝Membros da crew' });
-      }
+      const nick = interaction.fields.getTextInputValue('nick');
+      const idade = interaction.fields.getTextInputValue('idade');
+      const bounty = interaction.fields.getTextInputValue('bounty');
+      const plataforma = interaction.fields.getTextInputValue('plataforma');
 
-      await membro.roles.add(cargo);
-      await interaction.update({ content: '✅ Aprovado', components: [] });
+      let canal = interaction.guild.channels.cache.find(c => c.name === 'recrutamento-aprovacao');
 
-      membro.send('🎉 Você foi aprovado na crew!');
-    }
-
-    // RECUSAR
-    if (interaction.customId === 'recusar') {
-      const id = interaction.message.content;
-      const membro = await interaction.guild.members.fetch(id);
-
-      await interaction.update({ content: '❌ Recusado', components: [] });
-
-      membro.send('❌ Você foi recusado.');
-    }
-  });
-
-  // PERGUNTAS
-  client.on('messageCreate', async (msg) => {
-    if (!respostas.has(msg.author.id)) return;
-
-    const userRespostas = respostas.get(msg.author.id);
-    userRespostas.push(msg.content);
-
-    const perguntas = [
-      'Qual seu Nick?',
-      'Qual sua idade?',
-      'Quanto de bounty você tem?',
-      'Joga em qual plataforma?'
-    ];
-
-    if (userRespostas.length < perguntas.length) {
-      msg.reply(perguntas[userRespostas.length]);
-    } else {
-      respostas.delete(msg.author.id);
-
-      let canal = msg.guild.channels.cache.find(c => c.name === 'recrutamento-aprovacao');
       if (!canal) {
-        canal = await msg.guild.channels.create({ name: 'recrutamento-aprovacao' });
+        canal = await interaction.guild.channels.create({
+          name: 'recrutamento-aprovacao',
+          type: 0
+        });
       }
 
       const embed = new EmbedBuilder()
         .setColor('Yellow')
-        .setTitle('📩 Nova aplicação')
-        .setDescription(`
-👤 ${msg.author}
-
-Nick: ${userRespostas[0]}
-Idade: ${userRespostas[1]}
-Bounty: ${userRespostas[2]}
-Plataforma: ${userRespostas[3]}
-`);
+        .setTitle('📩 Nova Aplicação')
+        .setDescription(`👤 ${interaction.user}`)
+        .addFields(
+          { name: 'Nick', value: nick },
+          { name: 'Idade', value: idade },
+          { name: 'Bounty', value: bounty },
+          { name: 'Plataforma', value: plataforma }
+        );
 
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('aprovar').setLabel('✅ Aprovar').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('recusar').setLabel('❌ Recusar').setStyle(ButtonStyle.Danger)
+        new ButtonBuilder()
+          .setCustomId(`aprovar_${interaction.user.id}`)
+          .setLabel('✅ Aprovar')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId(`recusar_${interaction.user.id}`)
+          .setLabel('❌ Recusar')
+          .setStyle(ButtonStyle.Danger)
       );
 
-      canal.send({ content: msg.author.id, embeds: [embed], components: [row] });
+      canal.send({ embeds: [embed], components: [row] });
 
-      msg.reply('✅ Aplicação enviada!');
+      await interaction.reply({ content: '✅ Aplicação enviada!', ephemeral: true });
     }
+
+    // APROVAR
+    if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
+
+      const userId = interaction.customId.split('_')[1];
+      const membro = await interaction.guild.members.fetch(userId);
+
+      let cargo = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Membros da crew');
+
+      if (!cargo) {
+        cargo = await interaction.guild.roles.create({
+          name: '⃤⃟⃝Membros da crew'
+        });
+      }
+
+      await membro.roles.add(cargo);
+
+      await membro.send('🎉 Você foi aprovado na tripulação!');
+
+      await interaction.reply({ content: '✅ Aprovado e cargo entregue!' });
+    }
+
+    // RECUSAR
+    if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
+
+      const userId = interaction.customId.split('_')[1];
+      const membro = await interaction.guild.members.fetch(userId);
+
+      await membro.send('❌ Você foi recusado.');
+
+      await interaction.reply({ content: '❌ Recrutamento recusado' });
+    }
+
   });
 
 };
-
-// EXPORTA A FUNÇÃO DO PAINEL
-module.exports.enviarPainel = enviarPainel;
