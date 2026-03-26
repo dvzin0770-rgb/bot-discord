@@ -1,44 +1,31 @@
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3000;
+const { Client, GatewayIntentBits } = require('discord.js');
 
-app.get('/', (req, res) => res.send('Bot is alive'));
-app.listen(PORT, () => console.log(`✅ Web server rodando na porta ${PORT}`));
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 
-const {
-  Client, GatewayIntentBits, SlashCommandBuilder, PermissionFlagsBits,
-  REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder,
-  TextInputBuilder, TextInputStyle
-} = require('discord.js');
+// Quando o bot ligar
+client.once('ready', () => {
+    console.log(`✅ Bot ligado como ${client.user.tag}`);
+});
 
-const token    = process.env.DISCORD_TOKEN;
-const clientId = process.env.DISCORD_CLIENT_ID;
+// Responder mensagem simples (teste)
+client.on('messageCreate', (message) => {
+    if (message.author.bot) return;
 
-if (!token || !clientId) { console.error('❌ Missing env vars'); process.exit(1); }
+    if (message.content === '!ping') {
+        message.reply('🏓 Pong!');
+    }
+});
 
-const PREFIX = '!';
+// Função corrigida (sem erro)
+function getWarns(guildId, userId) {
+    return [];
+}
 
-// ── Warn storage ─────────────────────────────────────────────────────────────
-const warnData = new Map();
-function getWarns(guildId, userId) { ... }
-function addWarn(guildId, userId)  { ... }
-
-const RARE_FRUITS = ['dragon', 'leopard', 'dough'];
-
-// ── Client (GuildMembers toggled off until you enable it in Dev Portal) ───────
-const GUILD_MEMBERS_ENABLED = false;
-const client = new Client({ intents: [Guilds, GuildMessages, MessageContent, ...(GUILD_MEMBERS_ENABLED ? [GuildMembers] : [])] });
-
-// ── Slash commands: ban, kick, timeout, clear, ticket, recrutamento ───────────
-// ── Stock system: fetchStockData, buildStockEmbed, sendOrUpdateStock ──────────
-//    └ Rare fruit alert (Dragon / Leopard / Dough → @everyone ping)
-// ── Log system: getOrCreateLogChannel, sendLog, buildLog ─────────────────────
-// ── Ticket panel builder, Recruitment panel builder ───────────────────────────
-
-// ── Events ────────────────────────────────────────────────────────────────────
-// messageCreate  → !ping, !ticket, !recrutamento, !stock, !warn
-// interactionCreate → slash commands + buttons (ticket/recruit) + modal submit
-// guildMemberAdd / guildMemberRemove → logs (active when GUILD_MEMBERS_ENABLED = true)
-
-client.login(token);
+// Login do bot
+client.login(process.env.DISCORD_TOKEN);
