@@ -17,27 +17,38 @@ const client = new Client({
   ]
 });
 
-// ativa recrutamento separado
+// ATIVA RECRUTAMENTO
 recrutamento(client);
 
+// QUANDO LIGAR
 client.once('ready', async () => {
   console.log(`✅ Bot ligado como ${client.user.tag}`);
+});
 
-  // ===== SUPORTE =====
-  const suporte = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
+// ================= COMANDOS (!)
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  if (!message.content.startsWith('!')) return;
 
-  if (suporte) {
+  const args = message.content.slice(1).split(/ +/);
+  const cmd = args.shift().toLowerCase();
+
+  // TESTE
+  if (cmd === 'ping') {
+    return message.reply('🏓 Pong!');
+  }
+
+  // ===== PAINEL SUPORTE =====
+  if (cmd === 'ticket') {
+
     const embed = new EmbedBuilder()
       .setColor('#5865F2')
       .setTitle('🎫 Central de Suporte')
-      .setDescription('Precisa de ajuda? Abra um ticket e nossa equipe irá atendê-lo!')
+      .setDescription('Precisa de ajuda? Abra um ticket abaixo!')
       .addFields(
-        { name: '📋 Como funciona?', value: 'Clique no botão abaixo para criar um canal privado.' },
-        { name: '⏱️ Tempo', value: 'Respondemos o mais rápido possível.' },
+        { name: '📋 Como funciona?', value: 'Clique no botão para abrir um ticket.' },
         { name: '🔒 Privacidade', value: 'Apenas você e a staff podem ver.' }
-      )
-      .setFooter({ text: 'Abra apenas se necessário' })
-      .setTimestamp();
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -46,41 +57,23 @@ client.once('ready', async () => {
         .setStyle(ButtonStyle.Primary)
     );
 
-    await suporte.send({ embeds: [embed], components: [row] });
+    message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // ===== RECRUTAMENTO PAINEL =====
-  const canalRec = client.channels.cache.find(c =>
-    c.name === '📜丨recrutamento' || c.name === 'recrutamento'
-  );
-
-  if (canalRec) {
-    const embed = new EmbedBuilder()
-      .setColor('#FFD700')
-      .setTitle('⚓ Recrutamento da Tripulação')
-      .setDescription('Clique abaixo para aplicar!')
-      .addFields(
-        { name: '📋 Requisitos', value: '• Ser ativo\n• Respeitar regras' },
-        { name: '⏳ Processo', value: 'Staff irá analisar sua aplicação.' }
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('aplicar')
-        .setLabel('📩 Aplicar')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    await canalRec.send({ embeds: [embed], components: [row] });
+  // ===== PAINEL RECRUTAMENTO =====
+  if (cmd === 'recrutamento') {
+    recrutamento.enviarPainel(message.channel);
   }
+
 });
 
-// ===== BOTÕES =====
+// ================= BOTÕES =================
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   // ===== TICKET =====
   if (interaction.customId === 'ticket') {
+
     await interaction.deferReply({ ephemeral: true });
 
     const canal = await interaction.guild.channels.create({
@@ -96,8 +89,8 @@ client.on('interactionCreate', async (interaction) => {
 
     const embed = new EmbedBuilder()
       .setColor('#5865F2')
-      .setTitle('🎫 Ticket')
-      .setDescription(`Olá ${interaction.user}, explique seu problema.`);
+      .setTitle('🎫 Suporte - Ticket')
+      .setDescription(`Olá ${interaction.user}!\nExplique seu problema.\n\n🔒 Apenas você e a staff podem ver.`);
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger),
@@ -108,13 +101,14 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   if (interaction.customId === 'fechar') {
-    await interaction.reply({ content: 'Fechando...', ephemeral: true });
+    await interaction.reply({ content: '🔒 Fechando...', ephemeral: true });
     setTimeout(() => interaction.channel.delete(), 3000);
   }
 
   if (interaction.customId === 'assumir') {
-    await interaction.reply({ content: `${interaction.user} assumiu o ticket` });
+    await interaction.reply({ content: `👮 ${interaction.user} assumiu o ticket` });
   }
+
 });
 
 client.login(process.env.DISCORD_TOKEN);
