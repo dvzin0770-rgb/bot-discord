@@ -20,7 +20,7 @@ const client = new Client({
   ]
 });
 
-// ATIVAR SISTEMAS
+// SISTEMAS
 comandos(client);
 recrutamento(client);
 staff(client);
@@ -29,22 +29,28 @@ staff(client);
 client.once('ready', async () => {
   console.log(`✅ Bot ligado como ${client.user.tag}`);
 
-  // ===== PAINEL SUPORTE =====
-  const suporte = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
+  // ===== PAINEL SUPORTE (PROFISSIONAL) =====
+  const canal = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
 
-  if (suporte) {
-    const msgs = await suporte.messages.fetch({ limit: 10 });
+  if (canal) {
+    const msgs = await canal.messages.fetch({ limit: 10 });
     const jaExiste = msgs.find(m => m.author.id === client.user.id);
 
     if (!jaExiste) {
+
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
+        .setColor('#2B2D31')
         .setTitle('🎫 Central de Suporte')
         .setDescription(
-          'Precisa de ajuda? Abra um ticket e nossa equipe irá atendê-lo!\n\n' +
-          '📋 **Como funciona?**\nClique no botão abaixo.\n\n' +
-          '🔒 **Privado**\nApenas você e a staff.'
-        );
+          'Se precisar de ajuda, abra um ticket e nossa equipe irá te atender.\n\n' +
+          '📋 **Como funciona?**\n' +
+          'Clique no botão abaixo para criar um canal privado.\n\n' +
+          '⏱️ **Tempo de resposta**\n' +
+          'Respondemos o mais rápido possível.\n\n' +
+          '🔒 **Privacidade**\n' +
+          'Apenas você e a staff podem ver.'
+        )
+        .setFooter({ text: 'Sistema de suporte' });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -53,7 +59,7 @@ client.once('ready', async () => {
           .setStyle(ButtonStyle.Primary)
       );
 
-      suporte.send({ embeds: [embed], components: [row] });
+      canal.send({ embeds: [embed], components: [row] });
     }
   }
 
@@ -72,10 +78,15 @@ client.once('ready', async () => {
   }
 });
 
-// ===== TICKET =====
+// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
 
-  if (interaction.isButton() && interaction.customId === 'abrir_ticket') {
+  if (!interaction.isButton()) return;
+
+  // ===== ABRIR TICKET =====
+  if (interaction.customId === 'abrir_ticket') {
+
+    await interaction.deferReply({ ephemeral: true });
 
     const canal = await interaction.guild.channels.create({
       name: `ticket-${interaction.user.username}`,
@@ -87,35 +98,64 @@ client.on('interactionCreate', async (interaction) => {
         },
         {
           id: interaction.user.id,
-          allow: [PermissionsBitField.Flags.ViewChannel]
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages
+          ]
         }
       ]
     });
 
     const embed = new EmbedBuilder()
-      .setColor('Green')
+      .setColor('#2B2D31')
       .setTitle('🎫 Suporte - Ticket')
       .setDescription(
-        `Olá ${interaction.user}!\nExplique seu problema.\n\n🔒 Apenas você e a staff podem ver.`
-      );
+        `Olá ${interaction.user}!\n\n` +
+        'Explique seu problema com o máximo de detalhes possível e aguarde a equipe.\n\n' +
+        '🔒 Apenas você e a staff podem ver este canal.'
+      )
+      .setFooter({ text: 'Equipe de suporte' });
 
     const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('assumir_ticket')
+        .setLabel('👮 Assumir Ticket')
+        .setStyle(ButtonStyle.Primary),
+
       new ButtonBuilder()
         .setCustomId('fechar_ticket')
         .setLabel('🔒 Fechar Ticket')
         .setStyle(ButtonStyle.Danger)
     );
 
-    canal.send({ embeds: [embed], components: [row] });
+    await canal.send({
+      content: `${interaction.user}`,
+      embeds: [embed],
+      components: [row]
+    });
 
-    await interaction.reply({
-      content: `✅ Ticket criado: ${canal}`,
-      ephemeral: true
+    await interaction.editReply({
+      content: `✅ Seu ticket foi criado: ${canal}`
     });
   }
 
-  if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
-    await interaction.channel.delete();
+  // ===== ASSUMIR =====
+  if (interaction.customId === 'assumir_ticket') {
+    await interaction.reply({
+      content: `👮 ${interaction.user} assumiu este ticket`
+    });
+  }
+
+  // ===== FECHAR =====
+  if (interaction.customId === 'fechar_ticket') {
+    await interaction.reply({
+      content: '🔒 Fechando ticket...',
+      ephemeral: true
+    });
+
+    setTimeout(() => {
+      interaction.channel.delete();
+    }, 2000);
   }
 
 });
