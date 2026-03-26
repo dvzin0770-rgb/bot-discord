@@ -1,13 +1,15 @@
-const recrutamento = require('./recrutamento');
-
 const {
   Client,
   GatewayIntentBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  PermissionsBitField
 } = require('discord.js');
+
+const comandos = require('./comandos');
+const recrutamento = require('./recrutamento');
 
 const client = new Client({
   intents: [
@@ -17,96 +19,101 @@ const client = new Client({
   ]
 });
 
-// ATIVA RECRUTAMENTO
+// carregar sistemas
+comandos(client);
 recrutamento(client);
 
-// QUANDO LIGAR
+// ===== BOT ONLINE =====
 client.once('ready', async () => {
   console.log(`✅ Bot ligado como ${client.user.tag}`);
-});
-
-// ================= COMANDOS (!)
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith('!')) return;
-
-  const args = message.content.slice(1).split(/ +/);
-  const cmd = args.shift().toLowerCase();
-
-  // TESTE
-  if (cmd === 'ping') {
-    return message.reply('🏓 Pong!');
-  }
 
   // ===== PAINEL SUPORTE =====
-  if (cmd === 'ticket') {
+  const canalSuporte = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
 
-    const embed = new EmbedBuilder()
-      .setColor('#5865F2')
-      .setTitle('🎫 Central de Suporte')
-      .setDescription('Precisa de ajuda? Abra um ticket abaixo!')
-      .addFields(
-        { name: '📋 Como funciona?', value: 'Clique no botão para abrir um ticket.' },
-        { name: '🔒 Privacidade', value: 'Apenas você e a staff podem ver.' }
+  if (canalSuporte) {
+    const mensagens = await canalSuporte.messages.fetch({ limit: 10 });
+    const jaExiste = mensagens.find(m => m.author.id === client.user.id);
+
+    if (!jaExiste) {
+      const embed = new EmbedBuilder()
+        .setColor('Blue')
+        .setTitle('🎫 Central de Suporte')
+        .setDescription(
+          'Precisa de ajuda? Abra um ticket e nossa equipe irá atendê-lo!\n\n' +
+          '📋 **Como funciona?**\n' +
+          'Clique no botão abaixo para criar um canal privado.\n\n' +
+          '⏱️ **Tempo de resposta**\n' +
+          'Respondemos o mais rápido possível.\n\n' +
+          '🔒 **Privacidade**\n' +
+          'Apenas você e a staff podem ver.'
+        );
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('abrir_ticket')
+          .setLabel('🎟️ Abrir Ticket')
+          .setStyle(ButtonStyle.Primary)
       );
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('ticket')
-        .setLabel('🎟️ Abrir Ticket')
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    message.channel.send({ embeds: [embed], components: [row] });
+      canalSuporte.send({ embeds: [embed], components: [row] });
+    }
   }
 
   // ===== PAINEL RECRUTAMENTO =====
-  if (cmd === 'recrutamento') {
-    recrutamento.enviarPainel(message.channel);
-  }
+  const canalRecrutamento = client.channels.cache.find(c => c.name === '📜丨recrutamento');
 
+  if (canalRecrutamento) {
+    const mensagens = await canalRecrutamento.messages.fetch({ limit: 10 });
+    const jaExiste = mensagens.find(m => m.author.id === client.user.id);
+
+    if (!jaExiste) {
+      recrutamento.enviarPainel(canalRecrutamento);
+    }
+  }
 });
 
-// ================= BOTÕES =================
+// ===== INTERAÇÕES (TICKET) =====
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
 
-  // ===== TICKET =====
-  if (interaction.customId === 'ticket') {
-
-    await interaction.deferReply({ ephemeral: true });
+  if (interaction.isButton() && interaction.customId === 'abrir_ticket') {
 
     const canal = await interaction.guild.channels.create({
       name: `ticket-${interaction.user.username}`,
       type: 0,
       permissionOverwrites: [
-        { id: interaction.guild.id, deny: ['ViewChannel'] },
-        { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
+        {
+          id: interaction.guild.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+        {
+          id: interaction.user.id,
+          allow: [PermissionsBitField.Flags.ViewChannel]
+        }
       ]
     });
 
-    await interaction.editReply({ content: `✅ Ticket criado: ${canal}` });
-
     const embed = new EmbedBuilder()
-      .setColor('#5865F2')
+      .setColor('Green')
       .setTitle('🎫 Suporte - Ticket')
-      .setDescription(`Olá ${interaction.user}!\nExplique seu problema.\n\n🔒 Apenas você e a staff podem ver.`);
+      .setDescription(
+        `Olá ${interaction.user}!\nExplique seu problema com detalhes.\n\n🔒 Apenas você e a staff podem ver.`
+      );
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('assumir').setLabel('👮 Assumir').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder()
+        .setCustomId('fechar_ticket')
+        .setLabel('🔒 Fechar Ticket')
+        .setStyle(ButtonStyle.Danger)
     );
 
-    canal.send({ content: `${interaction.user}`, embeds: [embed], components: [row] });
+    canal.send({ embeds: [embed], components: [row] });
+
+    await interaction.reply({ content: `✅ Ticket criado: ${canal}`, ephemeral: true });
   }
 
-  if (interaction.customId === 'fechar') {
-    await interaction.reply({ content: '🔒 Fechando...', ephemeral: true });
-    setTimeout(() => interaction.channel.delete(), 3000);
-  }
-
-  if (interaction.customId === 'assumir') {
-    await interaction.reply({ content: `👮 ${interaction.user} assumiu o ticket` });
+  // FECHAR TICKET
+  if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
+    await interaction.channel.delete();
   }
 
 });
