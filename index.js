@@ -89,9 +89,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ===== INTERAÇÕES =====
-client.on('interactionCreate', async (interaction) => {
-
-  if (interaction.isButton()) {
+client.on('interactionCreate', async (interaction) => {if (interaction.isButton()) {
 
     // ===== ABRIR TICKET =====
     if (interaction.customId === 'abrir_ticket') { client.on('interactionCreate', async (interaction) => {
