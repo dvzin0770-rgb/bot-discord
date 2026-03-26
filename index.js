@@ -10,6 +10,7 @@ const {
 
 const comandos = require('./comandos');
 const recrutamento = require('./recrutamento');
+const staff = require('./staff');
 
 const client = new Client({
   intents: [
@@ -19,33 +20,30 @@ const client = new Client({
   ]
 });
 
-// carregar sistemas
+// ATIVAR SISTEMAS
 comandos(client);
 recrutamento(client);
+staff(client);
 
-// ===== BOT ONLINE =====
+// BOT ONLINE
 client.once('ready', async () => {
   console.log(`✅ Bot ligado como ${client.user.tag}`);
 
   // ===== PAINEL SUPORTE =====
-  const canalSuporte = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
+  const suporte = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
 
-  if (canalSuporte) {
-    const mensagens = await canalSuporte.messages.fetch({ limit: 10 });
-    const jaExiste = mensagens.find(m => m.author.id === client.user.id);
+  if (suporte) {
+    const msgs = await suporte.messages.fetch({ limit: 10 });
+    const jaExiste = msgs.find(m => m.author.id === client.user.id);
 
     if (!jaExiste) {
       const embed = new EmbedBuilder()
-        .setColor('Blue')
+        .setColor('#5865F2')
         .setTitle('🎫 Central de Suporte')
         .setDescription(
           'Precisa de ajuda? Abra um ticket e nossa equipe irá atendê-lo!\n\n' +
-          '📋 **Como funciona?**\n' +
-          'Clique no botão abaixo para criar um canal privado.\n\n' +
-          '⏱️ **Tempo de resposta**\n' +
-          'Respondemos o mais rápido possível.\n\n' +
-          '🔒 **Privacidade**\n' +
-          'Apenas você e a staff podem ver.'
+          '📋 **Como funciona?**\nClique no botão abaixo.\n\n' +
+          '🔒 **Privado**\nApenas você e a staff.'
         );
 
       const row = new ActionRowBuilder().addComponents(
@@ -55,24 +53,26 @@ client.once('ready', async () => {
           .setStyle(ButtonStyle.Primary)
       );
 
-      canalSuporte.send({ embeds: [embed], components: [row] });
+      suporte.send({ embeds: [embed], components: [row] });
     }
   }
 
   // ===== PAINEL RECRUTAMENTO =====
-  const canalRecrutamento = client.channels.cache.find(c => c.name === '📜丨recrutamento');
+  const recrut = client.channels.cache.find(c =>
+    c.name === '📜丨recrutamento' || c.name === 'recrutamento'
+  );
 
-  if (canalRecrutamento) {
-    const mensagens = await canalRecrutamento.messages.fetch({ limit: 10 });
-    const jaExiste = mensagens.find(m => m.author.id === client.user.id);
+  if (recrut) {
+    const msgs = await recrut.messages.fetch({ limit: 10 });
+    const jaExiste = msgs.find(m => m.author.id === client.user.id);
 
     if (!jaExiste) {
-      recrutamento.enviarPainel(canalRecrutamento);
+      recrutamento.enviarPainel(recrut);
     }
   }
 });
 
-// ===== INTERAÇÕES (TICKET) =====
+// ===== TICKET =====
 client.on('interactionCreate', async (interaction) => {
 
   if (interaction.isButton() && interaction.customId === 'abrir_ticket') {
@@ -96,7 +96,7 @@ client.on('interactionCreate', async (interaction) => {
       .setColor('Green')
       .setTitle('🎫 Suporte - Ticket')
       .setDescription(
-        `Olá ${interaction.user}!\nExplique seu problema com detalhes.\n\n🔒 Apenas você e a staff podem ver.`
+        `Olá ${interaction.user}!\nExplique seu problema.\n\n🔒 Apenas você e a staff podem ver.`
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -108,10 +108,12 @@ client.on('interactionCreate', async (interaction) => {
 
     canal.send({ embeds: [embed], components: [row] });
 
-    await interaction.reply({ content: `✅ Ticket criado: ${canal}`, ephemeral: true });
+    await interaction.reply({
+      content: `✅ Ticket criado: ${canal}`,
+      ephemeral: true
+    });
   }
 
-  // FECHAR TICKET
   if (interaction.isButton() && interaction.customId === 'fechar_ticket') {
     await interaction.channel.delete();
   }
