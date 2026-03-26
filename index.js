@@ -1,163 +1,60 @@
-const {
-  Client,
-  GatewayIntentBits,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  PermissionsBitField
-} = require('discord.js');
+client.on('interactionCreate', async (interaction) => {
 
-const comandos = require('./comandos');
-const recrutamento = require('./recrutamento');
-const staff = require('./staff');
+  if (interaction.isButton()) {
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
-});
+    // ===== ABRIR TICKET =====
+    if (interaction.customId === 'abrir_ticket') {
 
-// SISTEMAS
-comandos(client);
-recrutamento(client);
-staff(client);
+      const categoria = interaction.guild.channels.cache.find(
+        c => c.name === '「❄️」丨SUPORTE' && c.type === 4
+      );
 
-// BOT ONLINE
-client.once('ready', async () => {
-  console.log(`✅ Bot ligado como ${client.user.tag}`);
-
-  // ===== PAINEL SUPORTE (PROFISSIONAL) =====
-  const canal = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
-
-  if (canal) {
-    const msgs = await canal.messages.fetch({ limit: 10 });
-    const jaExiste = msgs.find(m => m.author.id === client.user.id);
-
-    if (!jaExiste) {
+      const canal = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: 0,
+        parent: categoria?.id,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id,
+            deny: ['ViewChannel']
+          },
+          {
+            id: interaction.user.id,
+            allow: ['ViewChannel', 'SendMessages']
+          }
+        ]
+      });
 
       const embed = new EmbedBuilder()
         .setColor('#2B2D31')
-        .setTitle('🎫 Central de Suporte')
+        .setTitle('🎫 Suporte - Ticket')
         .setDescription(
-          'Se precisar de ajuda, abra um ticket e nossa equipe irá te atender.\n\n' +
-          '📋 **Como funciona?**\n' +
-          'Clique no botão abaixo para criar um canal privado.\n\n' +
-          '⏱️ **Tempo de resposta**\n' +
-          'Respondemos o mais rápido possível.\n\n' +
-          '🔒 **Privacidade**\n' +
-          'Apenas você e a staff podem ver.'
-        )
-        .setFooter({ text: 'Sistema de suporte' });
+          `Olá ${interaction.user}!\n` +
+          'Explique seu problema com detalhes e aguarde a equipe responder.\n' +
+          '🔒 Apenas você e a staff podem ver este canal.'
+        );
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('abrir_ticket')
-          .setLabel('🎟️ Abrir Ticket')
-          .setStyle(ButtonStyle.Primary)
+          .setCustomId('fechar_ticket')
+          .setLabel('🔒 Fechar Ticket')
+          .setStyle(ButtonStyle.Danger)
       );
 
-      canal.send({ embeds: [embed], components: [row] });
+      await canal.send({ embeds: [embed], components: [row] });
+
+      await interaction.reply({
+        content: `✅ Ticket criado: ${canal}`,
+        ephemeral: true
+      });
     }
-  }
 
-  // ===== PAINEL RECRUTAMENTO =====
-  const recrut = client.channels.cache.find(c =>
-    c.name === '📜丨recrutamento' || c.name === 'recrutamento'
-  );
-
-  if (recrut) {
-    const msgs = await recrut.messages.fetch({ limit: 10 });
-    const jaExiste = msgs.find(m => m.author.id === client.user.id);
-
-    if (!jaExiste) {
-      recrutamento.enviarPainel(recrut);
+    // ===== FECHAR TICKET =====
+    if (interaction.customId === 'fechar_ticket') {
+      await interaction.reply({ content: '🔒 Fechando ticket...', ephemeral: true });
+      setTimeout(() => {
+        interaction.channel.delete();
+      }, 2000);
     }
   }
 });
-
-// ===== INTERAÇÕES =====
-client.on('interactionCreate', async (interaction) => {
-
-  if (!interaction.isButton()) return;
-
-  // ===== ABRIR TICKET =====
-  if (interaction.customId === 'abrir_ticket') {
-
-    await interaction.deferReply({ ephemeral: true });
-
-    const canal = await interaction.guild.channels.create({
-      name: `ticket-${interaction.user.username}`,
-      type: 0,
-      permissionOverwrites: [
-        {
-          id: interaction.guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel]
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ]
-        }
-      ]
-    });
-
-    const embed = new EmbedBuilder()
-      .setColor('#2B2D31')
-      .setTitle('🎫 Suporte - Ticket')
-      .setDescription(
-        `Olá ${interaction.user}!\n\n` +
-        'Explique seu problema com o máximo de detalhes possível e aguarde a equipe.\n\n' +
-        '🔒 Apenas você e a staff podem ver este canal.'
-      )
-      .setFooter({ text: 'Equipe de suporte' });
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('assumir_ticket')
-        .setLabel('👮 Assumir Ticket')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('fechar_ticket')
-        .setLabel('🔒 Fechar Ticket')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await canal.send({
-      content: `${interaction.user}`,
-      embeds: [embed],
-      components: [row]
-    });
-
-    await interaction.editReply({
-      content: `✅ Seu ticket foi criado: ${canal}`
-    });
-  }
-
-  // ===== ASSUMIR =====
-  if (interaction.customId === 'assumir_ticket') {
-    await interaction.reply({
-      content: `👮 ${interaction.user} assumiu este ticket`
-    });
-  }
-
-  // ===== FECHAR =====
-  if (interaction.customId === 'fechar_ticket') {
-    await interaction.reply({
-      content: '🔒 Fechando ticket...',
-      ephemeral: true
-    });
-
-    setTimeout(() => {
-      interaction.channel.delete();
-    }, 2000);
-  }
-
-});
-
-client.login(process.env.DISCORD_TOKEN);
