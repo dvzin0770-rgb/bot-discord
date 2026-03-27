@@ -1,19 +1,19 @@
-fetch('ranking.json')
-  .then(res => res.json())
-  .then(data => {
+const ranking = [
+  { nome: "Dvzin", pontos: 120 },
+  { nome: "Player2", pontos: 90 },
+  { nome: "Player3", pontos: 50 }
+];
 
-    const div = document.getElementById('ranking');
+const rankingDiv = document.getElementById("ranking");
 
-    data.forEach((user, i) => {
-      const el = document.createElement('div');
-      el.className = 'card';
+ranking.forEach((player, index) => {
+  const div = document.createElement("div");
+  div.classList.add("player");
 
-      el.innerHTML = `
-        <b>#${i + 1}</b> ${user.nick} <br>
-        ⭐ ${user.pontos} pontos
-      `;
+  div.innerHTML = `
+    <h2>#${index + 1} ${player.nome}</h2>
+    <p>⭐ ${player.pontos} pontos</p>
+  `;
 
-      div.appendChild(el);
-    });
-
-  });
+  rankingDiv.appendChild(div);
+});
