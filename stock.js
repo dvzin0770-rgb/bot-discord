@@ -81,7 +81,7 @@ module.exports = (client) => {
 
     atualizarStock();
 
-    setInterval(atualizarStock, 1000 * 60 * 10);
+    setInterval(atualizarStock, 1000 * 30);
   });
 
 };
