@@ -5,19 +5,22 @@ module.exports = (client) => {
 
   async function pegarStock() {
     try {
-      const res = await axios.get('https://api.bloxfruits.com/stock', {
-        timeout: 5000
-      });
-      return res.data;
-    } catch {
-      return null;
-    }
+      // API 1
+      const res = await axios.get('https://api.bloxfruits.com/stock', { timeout: 5000 });
+      if (res.data) return res.data;
+    } catch {}
+
+    try {
+      // API 2 (fallback)
+      const res = await axios.get('https://blox-fruits-api.onrender.com/stock', { timeout: 5000 });
+      if (res.data) return res.data;
+    } catch {}
+
+    return null;
   }
 
   async function atualizarStock() {
     try {
-
-      // ✅ CANAL PELO ID (100% CERTO)
       const canal = client.channels.cache.get('1485259856712568832');
 
       if (!canal) {
@@ -25,31 +28,27 @@ module.exports = (client) => {
         return;
       }
 
-      console.log('📤 Canal encontrado, tentando enviar...');
+      console.log('📤 Buscando stock...');
 
       const normalRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Normal ping');
       const mirageRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Mirage ping');
 
-      // 🔁 tenta até 3 vezes
-      let data = null;
-      for (let i = 0; i < 3; i++) {
-        data = await pegarStock();
-        if (data) break;
-      }
+      const data = await pegarStock();
 
       if (!data) {
-        console.log('❌ API morreu de vez, tentando depois...');
+        console.log('❌ Nenhuma API respondeu');
         return;
       }
 
-      const normal = Array.isArray(data.normal) ? data.normal : [];
-      const mirage = Array.isArray(data.mirage) ? data.mirage : [];
-      const tempo = data.time || 'Desconhecido';
+      // adapta formatos diferentes
+      const normal = data.normal || data.stock || [];
+      const mirage = data.mirage || data.mirageStock || [];
+      const tempo = data.time || data.reset || 'Desconhecido';
 
       const embed = new EmbedBuilder()
         .setColor('#8A2BE2')
         .setTitle('🛒 Blox Fruits Stock')
-        .setDescription('Atualização automática do stock:')
+        .setDescription('Atualização automática do stock')
         .addFields(
           {
             name: '🍏 Normal',
@@ -69,7 +68,6 @@ module.exports = (client) => {
         .setTimestamp();
 
       let ping = '';
-
       if (normal.length && normalRole) ping += `<@&${normalRole.id}> `;
       if (mirage.length && mirageRole) ping += `<@&${mirageRole.id}> `;
 
@@ -78,7 +76,7 @@ module.exports = (client) => {
         embeds: [embed]
       });
 
-      console.log('✅ Mensagem enviada!');
+      console.log('✅ Stock enviado!');
 
     } catch (err) {
       console.log('Erro geral stock:', err.message);
@@ -86,11 +84,11 @@ module.exports = (client) => {
   }
 
   client.once('ready', () => {
-    console.log('📦 Sistema de stock iniciado');
+    console.log('📦 Sistema de stock iniciado (multi API)');
 
     atualizarStock();
 
-    setInterval(atualizarStock, 1000 * 30);
+    setInterval(atualizarStock, 1000 * 60 * 5); // 5 min
   });
 
 };
