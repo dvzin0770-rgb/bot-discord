@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
 // ===== IMPORTAR ARQUIVOS =====
 const ticket = require('./ticket');
@@ -7,7 +7,7 @@ const comandos = require('./comandos');
 const stock = require('./stock');
 const eventos = require('./eventos');
 const pings = require('./pings');
-const quiz = require('./quiz'); // 👈 ADICIONADO
+const quiz = require('./quiz');
 
 // ===== CLIENT =====
 const client = new Client({
@@ -16,6 +16,11 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions
+  ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
   ]
 });
 
@@ -26,7 +31,7 @@ comandos(client);
 stock(client);
 eventos(client);
 pings(client);
-quiz(client); // 👈 ADICIONADO
+quiz(client);
 
 // ===== READY =====
 client.once('ready', () => {
