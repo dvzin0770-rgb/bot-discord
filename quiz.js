@@ -8,6 +8,9 @@ module.exports = (client) => {
   const PERGUNTAS_PATH = './perguntas.json';
   const DB_PATH = './quiz.json';
 
+  // 🔥 SUA IMAGEM (já hospedada)
+  const IMAGEM_QUIZ = 'https://files.catbox.moe/7r2m0q.png';
+
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
   }
@@ -34,23 +37,36 @@ module.exports = (client) => {
 
   async function enviarPergunta(canal) {
     const pergunta = getPergunta();
+    const pontos = getPontos(pergunta.dificuldade);
 
     const embed = new EmbedBuilder()
-      .setTitle('🧠 Quiz Blox Fruits')
-      .setDescription(
-        `**${pergunta.pergunta}**\n\n` +
-        `A) ${pergunta.alternativas[0]}\n` +
-        `B) ${pergunta.alternativas[1]}\n` +
-        `C) ${pergunta.alternativas[2]}\n` +
-        `D) ${pergunta.alternativas[3]}`
+      .setTitle('🧠 Hora do Quiz')
+      .setDescription(`**${pergunta.pergunta}**`)
+      .addFields(
+        {
+          name: '⚔️ Dificuldade',
+          value: pergunta.dificuldade.charAt(0).toUpperCase() + pergunta.dificuldade.slice(1),
+          inline: true
+        },
+        {
+          name: '🏷️ Tema',
+          value: pergunta.tag || 'Blox Fruits',
+          inline: true
+        },
+        {
+          name: '🏆 Recompensa',
+          value: `${'⭐'.repeat(pontos)} ${pontos} ponto(s)`,
+          inline: false
+        }
       )
+      .setImage(IMAGEM_QUIZ)
       .setColor('#5865F2');
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('A').setLabel('A').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('B').setLabel('B').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('C').setLabel('C').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('D').setLabel('D').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('0').setLabel(pergunta.alternativas[0]).setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('1').setLabel(pergunta.alternativas[1]).setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('2').setLabel(pergunta.alternativas[2]).setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('3').setLabel(pergunta.alternativas[3]).setStyle(ButtonStyle.Primary)
     );
 
     const msg = await canal.send({ embeds: [embed], components: [row] });
@@ -76,8 +92,8 @@ module.exports = (client) => {
       respondido = true;
       collector.stop();
 
-      const respostaUsuario = interaction.customId;
-      const respostaCorreta = ['A','B','C','D'][pergunta.resposta];
+      const respostaUsuario = parseInt(interaction.customId);
+      const respostaCorreta = pergunta.resposta;
 
       const db = getDB();
       const id = interaction.user.id;
@@ -87,17 +103,12 @@ module.exports = (client) => {
         db[id] = (db[id] || 0) + pontos;
         saveDB(db);
 
-        await interaction.reply(`✅ Você acertou! +${pontos} ponto(s)`);
+        await interaction.reply(`✅ Você acertou! Ganhou ${pontos} ponto(s) ⭐`);
       } else {
-        await interaction.reply(`❌ Você errou! Resposta correta: ${respostaCorreta}`);
+        await interaction.reply(`❌ Você errou! Tente na próxima 😭`);
       }
 
-      const disabledRow = new ActionRowBuilder().addComponents(
-        row.components.map(btn => ButtonBuilder.from(btn).setDisabled(true))
-      );
-
-      await msg.edit({ components: [disabledRow] });
-
+      await msg.edit({ components: [] });
     });
   }
 
@@ -122,7 +133,7 @@ module.exports = (client) => {
     const canal = guild.channels.cache.find(c => c.name === CANAL_QUIZ);
     if (!canal) return console.log('Canal do quiz não encontrado');
 
-    console.log('🧠 Quiz sincronizado com horários (00, 15, 30, 45)');
+    console.log('🧠 Quiz FULL personalizado ativado');
     agendar(canal);
   });
 
