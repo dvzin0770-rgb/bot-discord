@@ -8,6 +8,7 @@ const stock = require('./stock');
 const eventos = require('./eventos');
 const pings = require('./pings');
 const quiz = require('./quiz');
+const level = require('./level'); // 👈 ADICIONADO
 
 // ===== CLIENT =====
 const client = new Client({
@@ -32,6 +33,7 @@ stock(client);
 eventos(client);
 pings(client);
 quiz(client);
+level(client); // 👈 ADICIONADO
 
 // ===== READY =====
 client.once('ready', () => {
