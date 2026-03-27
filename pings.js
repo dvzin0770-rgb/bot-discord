@@ -2,21 +2,16 @@ const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
 
-  // nome exato do canal
   const CANAL_PAINEL = '🔴丨pɪɴɢs';
 
-  // lista de pings
+  // lista de pings inicial
   const pings = [
     { emoji: '🔴', name: '𝗣𝗜𝗡𝗚𝗦', role: 'ping geral', desc: 'Receba notificações gerais', color: 'Red' },
-    { emoji: '🎉', name: '𝗘𝗩𝗘𝗡𝗧𝗢𝗦', role: 'ping eventos', desc: 'Notificações de eventos e sorteios', color: 'Purple' },
-    { emoji: '🐉', name: '𝗥𝗔𝗜𝗗', role: 'ping raid', desc: 'Ping para avisos de Raid', color: 'DarkRed' },
-    { emoji: '🌊', name: '𝗘𝗩𝗘𝗡𝗧𝗢-𝗗𝗢-𝗠𝗔𝗥', role: 'ping evento mar', desc: 'Avisos de evento do mar', color: 'Blue' },
-    { emoji: '🥊', name: '𝗣𝗩𝗣', role: 'ping pvp', desc: 'Notificações de PvP', color: 'Green' },
-    { emoji: '🔎', name: '𝗠𝗜𝗡𝗛𝗔-𝗕𝗨𝗜𝗟𝗗-𝗘-𝗖𝗢𝗠𝗕𝗢𝗦', role: 'ping build', desc: 'Novas builds e combos', color: 'Gold' },
-    { emoji: '❗❓', name: '𝗩𝗔𝗟𝗘-𝗢𝗨-𝗡𝗔̃𝗢-𝗩𝗔𝗟𝗘', role: 'ping vale ou não vale', desc: 'Avisos de vale ou não vale', color: 'Orange' }
+    { emoji: '🎉', name: '𝗘𝗩𝗘𝗡𝗧𝗢𝗦', role: 'ping eventos', desc: 'Notificações de eventos e sorteios', color: 'Purple' }
+    // você pode adicionar outros iniciais
   ];
 
-  let painelMsg; // para garantir apenas uma mensagem
+  let painelMsg; // mensagem do painel
 
   client.on('ready', async () => {
     try {
@@ -27,7 +22,7 @@ module.exports = (client) => {
       const canal = canais.find(c => c.name === CANAL_PAINEL);
       if (!canal) return console.log(`Canal "${CANAL_PAINEL}" não encontrado`);
 
-      // embed do painel
+      // cria embed
       const embed = new EmbedBuilder()
         .setTitle('🎨 Painel de Pings')
         .setDescription(pings.map(p => `${p.emoji} │ ${p.name} → ${p.desc}`).join('\n'))
@@ -36,7 +31,7 @@ module.exports = (client) => {
       if (!painelMsg) {
         painelMsg = await canal.send({ embeds: [embed] });
         for (const p of pings) await painelMsg.react(p.emoji);
-        console.log('📌 Painel de pings enviado com sucesso!');
+        console.log('📌 Painel de pings enviado!');
       }
 
     } catch (err) {
@@ -91,4 +86,46 @@ module.exports = (client) => {
       console.error('Erro ao remover cargo:', err);
     }
   });
+
+  // ===== Comando dinâmico !addping =====
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (!message.content.startsWith('!addping')) return;
+
+    // comando: !addping <emoji> <nome do cargo> <cor> <descrição>
+    const args = message.content.split(' ').slice(1);
+    if (args.length < 4) return message.reply('❌ Uso: !addping <emoji> <nome do cargo> <cor> <descrição>');
+
+    const [emoji, ...rest] = args;
+    const roleName = rest[0];
+    const color = rest[1];
+    const desc = rest.slice(2).join(' ');
+
+    const guild = message.guild;
+
+    try {
+      const role = await getOrCreateRole(guild, roleName, color);
+
+      // adiciona no array de pings
+      pings.push({ emoji, name: roleName, role: roleName, desc, color });
+
+      // atualiza o embed
+      const canal = guild.channels.cache.find(c => c.name === CANAL_PAINEL);
+      if (!canal || !painelMsg) return;
+
+      const embed = new EmbedBuilder()
+        .setTitle('🎨 Painel de Pings')
+        .setDescription(pings.map(p => `${p.emoji} │ ${p.name} → ${p.desc}`).join('\n'))
+        .setColor('#8A2BE2');
+
+      await painelMsg.edit({ embeds: [embed] });
+      await painelMsg.react(emoji);
+
+      message.reply(`✅ Ping "${roleName}" adicionado com sucesso!`);
+    } catch (err) {
+      console.error('Erro ao adicionar novo ping:', err);
+      message.reply('❌ Erro ao adicionar o ping.');
+    }
+  });
+
 };
