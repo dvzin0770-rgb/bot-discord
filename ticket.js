@@ -14,6 +14,7 @@ module.exports = (client) => {
   const DB_PATH = './tickets.json';
 
   if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+
   const getDB = () => JSON.parse(fs.readFileSync(DB_PATH));
   const saveDB = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 
@@ -22,8 +23,7 @@ module.exports = (client) => {
     if (!canal) return console.log('Canal de suporte não encontrado');
 
     const mensagens = await canal.messages.fetch({ limit: 10 });
-    const jaTem = mensagens.some(m => m.author.id === client.user.id);
-    if (jaTem) return;
+    if (mensagens.some(m => m.author.id === client.user.id)) return;
 
     const embed = new EmbedBuilder()
       .setColor('#2B2D31')
@@ -123,21 +123,36 @@ module.exports = (client) => {
   // ===== !tickets =====
   client.on('messageCreate', (message) => {
     if (message.author.bot) return;
-    if (message.content === '!tickets') {
-      const db = getDB();
-      const total = db[message.author.id] || 0;
-      message.reply(`📊 Tickets assumidos: ${total}`);
-    }
-  });
 
-  // ===== !rankstaff =====
-  client.on('messageCreate', (message) => {
-    if (message.author.bot) return;
+    const staffRole = message.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
+    const isStaff = staffRole && message.member.roles.cache.has(staffRole.id);
+
+    if (message.content.startsWith('!tickets')) {
+      const db = getDB();
+      const args = message.content.split(/ +/);
+      let target = message.author;
+
+      // se mencionar alguém
+      if (args[1]) {
+        const member = message.mentions.users.first();
+        if (!member) return message.reply('❌ Usuário não encontrado.');
+        if (!isStaff) return message.reply('❌ Apenas staff pode ver tickets de outros.');
+        target = member;
+      }
+
+      const total = db[target.id] || 0;
+      return message.reply(`📊 Tickets de ${target}: ${total}`);
+    }
+
+    // ===== !rankstaff =====
     if (message.content === '!rankstaff') {
+      if (!isStaff) return message.reply('❌ Apenas staff pode usar esse comando.');
+
       const db = getDB();
       const ranking = Object.entries(db).sort((a,b) => b[1]-a[1]).slice(0,10);
       if (!ranking.length) return message.reply('Ninguém assumiu tickets ainda.');
-      let texto = ranking.map((user,i) => `#${i+1} <@${user[0]}> — ${user[1]} tickets`).join('\n');
+
+      const texto = ranking.map((user,i) => `#${i+1} <@${user[0]}> — ${user[1]} tickets`).join('\n');
       const embed = new EmbedBuilder().setColor('#2B2D31').setTitle('🏆 Ranking da Staff').setDescription(texto);
       message.channel.send({ embeds: [embed] });
     }
