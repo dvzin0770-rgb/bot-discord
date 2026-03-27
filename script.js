@@ -1,19 +1,23 @@
-const ranking = [
-  { nome: "Dvzin", pontos: 120 },
-  { nome: "Player2", pontos: 90 },
-  { nome: "Player3", pontos: 50 }
-];
+fetch('ranking.json')
+  .then(res => res.json())
+  .then(data => {
+    const rankingDiv = document.getElementById("ranking");
 
-const rankingDiv = document.getElementById("ranking");
+    // limpa antes (evita duplicar)
+    rankingDiv.innerHTML = "";
 
-ranking.forEach((player, index) => {
-  const div = document.createElement("div");
-  div.classList.add("player");
+    // ordenar por pontos
+    data.sort((a, b) => b.pontos - a.pontos);
 
-  div.innerHTML = `
-    <h2>#${index + 1} ${player.nome}</h2>
-    <p>⭐ ${player.pontos} pontos</p>
-  `;
+    data.forEach((player, index) => {
+      const div = document.createElement("div");
+      div.classList.add("player");
 
-  rankingDiv.appendChild(div);
-});
+      div.innerHTML = `
+        <h2>#${index + 1} ${player.nome}</h2>
+        <p>⭐ ${player.pontos} pontos</p>
+      `;
+
+      rankingDiv.appendChild(div);
+    });
+  });
