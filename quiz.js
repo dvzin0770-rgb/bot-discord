@@ -32,6 +32,89 @@ module.exports = (client) => {
     return 1;
   }
 
+  async function enviarPergunta(canal) {
+    const pergunta = getPergunta();
+
+    const embed = new EmbedBuilder()
+      .setTitle('🧠 Quiz Blox Fruits')
+      .setDescription(
+        `**${pergunta.pergunta}**\n\n` +
+        `A) ${pergunta.alternativas[0]}\n` +
+        `B) ${pergunta.alternativas[1]}\n` +
+        `C) ${pergunta.alternativas[2]}\n` +
+        `D) ${pergunta.alternativas[3]}`
+      )
+      .setColor('#5865F2');
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('A').setLabel('A').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('B').setLabel('B').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('C').setLabel('C').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('D').setLabel('D').setStyle(ButtonStyle.Primary)
+    );
+
+    const msg = await canal.send({ embeds: [embed], components: [row] });
+
+    const collector = msg.createMessageComponentCollector({ time: 900000 });
+
+    let respondido = false;
+
+    collector.on('collect', async (interaction) => {
+
+      if (respondido) return interaction.reply({ content: '❌ Já responderam.', ephemeral: true });
+
+      const member = interaction.member;
+      const role = interaction.guild.roles.cache.find(r => r.name === CARGO_PERMITIDO);
+
+      if (!role || !member.roles.cache.has(role.id)) {
+        return interaction.reply({
+          content: '❌ Só membros da tripulação podem participar.',
+          ephemeral: true
+        });
+      }
+
+      respondido = true;
+      collector.stop();
+
+      const respostaUsuario = interaction.customId;
+      const respostaCorreta = ['A','B','C','D'][pergunta.resposta];
+
+      const db = getDB();
+      const id = interaction.user.id;
+
+      if (respostaUsuario === respostaCorreta) {
+        const pontos = getPontos(pergunta.dificuldade);
+        db[id] = (db[id] || 0) + pontos;
+        saveDB(db);
+
+        await interaction.reply(`✅ Você acertou! +${pontos} ponto(s)`);
+      } else {
+        await interaction.reply(`❌ Você errou! Resposta correta: ${respostaCorreta}`);
+      }
+
+      const disabledRow = new ActionRowBuilder().addComponents(
+        row.components.map(btn => ButtonBuilder.from(btn).setDisabled(true))
+      );
+
+      await msg.edit({ components: [disabledRow] });
+
+    });
+  }
+
+  function agendar(canal) {
+    const agora = new Date();
+    const minutos = agora.getMinutes();
+    const segundos = agora.getSeconds();
+
+    const proximo = 15 - (minutos % 15);
+    const delay = (proximo * 60 - segundos) * 1000;
+
+    setTimeout(() => {
+      enviarPergunta(canal);
+      setInterval(() => enviarPergunta(canal), 15 * 60 * 1000);
+    }, delay);
+  }
+
   client.once('ready', async () => {
     const guild = client.guilds.cache.first();
     if (!guild) return;
@@ -39,86 +122,8 @@ module.exports = (client) => {
     const canal = guild.channels.cache.find(c => c.name === CANAL_QUIZ);
     if (!canal) return console.log('Canal do quiz não encontrado');
 
-    console.log('🧠 Sistema de quiz iniciado');
-
-    setInterval(async () => {
-
-      const pergunta = getPergunta();
-
-      const embed = new EmbedBuilder()
-        .setTitle('🧠 Quiz Blox Fruits')
-        .setDescription(
-          `**${pergunta.pergunta}**\n\n` +
-          `A) ${pergunta.alternativas[0]}\n` +
-          `B) ${pergunta.alternativas[1]}\n` +
-          `C) ${pergunta.alternativas[2]}\n` +
-          `D) ${pergunta.alternativas[3]}`
-        )
-        .setColor('#5865F2');
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('A').setLabel('A').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('B').setLabel('B').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('C').setLabel('C').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('D').setLabel('D').setStyle(ButtonStyle.Primary)
-      );
-
-      const msg = await canal.send({ embeds: [embed], components: [row] });
-
-      const collector = msg.createMessageComponentCollector({ time: 600000 });
-
-      let respondido = false;
-
-      collector.on('collect', async (interaction) => {
-
-        if (respondido) return interaction.reply({ content: '❌ Já responderam.', ephemeral: true });
-
-        const member = interaction.member;
-        const role = interaction.guild.roles.cache.find(r => r.name === CARGO_PERMITIDO);
-
-        if (!role || !member.roles.cache.has(role.id)) {
-          return interaction.reply({
-            content: '❌ Só membros da tripulação podem participar.',
-            ephemeral: true
-          });
-        }
-
-        respondido = true;
-        collector.stop();
-
-        const respostaUsuario = interaction.customId;
-        const respostaCorreta = ['A','B','C','D'][pergunta.resposta];
-
-        const db = getDB();
-        const id = interaction.user.id;
-
-        let pontos = 0;
-
-        if (respostaUsuario === respostaCorreta) {
-          pontos = getPontos(pergunta.dificuldade);
-          db[id] = (db[id] || 0) + pontos;
-          saveDB(db);
-
-          await interaction.reply({
-            content: `✅ Você acertou! Ganhou ${pontos} ponto(s)`
-          });
-        } else {
-          await interaction.reply({
-            content: `❌ Você errou! Resposta correta: ${respostaCorreta}`
-          });
-        }
-
-        // desativa botões
-        const disabledRow = new ActionRowBuilder().addComponents(
-          row.components.map(btn => ButtonBuilder.from(btn).setDisabled(true))
-        );
-
-        await msg.edit({ components: [disabledRow] });
-
-      });
-
-    }, 900000); // 15 minutos
-
+    console.log('🧠 Quiz sincronizado com horários (00, 15, 30, 45)');
+    agendar(canal);
   });
 
 };
