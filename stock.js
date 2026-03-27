@@ -1,5 +1,4 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
@@ -10,23 +9,27 @@ module.exports = (client) => {
         timeout: 10000
       });
 
-      const $ = cheerio.load(res.data);
+      const html = res.data;
+
+      // 🔎 lista completa de frutas
+      const frutas = [
+        "Rocket","Spin","Chop","Spring","Bomb","Smoke","Spike",
+        "Flame","Falcon","Ice","Sand","Dark","Diamond","Light",
+        "Rubber","Barrier","Ghost","Magma","Quake","Buddha",
+        "Love","Spider","Sound","Phoenix","Portal","Rumble",
+        "Pain","Blizzard","Gravity","Dough","Shadow","Venom",
+        "Control","Spirit","Dragon","Leopard","Kitsune"
+      ];
 
       let normal = [];
-      let mirage = [];
 
-      // 🔎 pega nomes das frutas (site pode mudar, mas esse funciona hoje)
-      $('.stock-item').each((i, el) => {
-        const nome = $(el).find('.item-name').text().trim();
-        if (nome) normal.push(nome);
+      frutas.forEach(fruta => {
+        if (html.includes(fruta)) {
+          normal.push(fruta);
+        }
       });
 
-      $('.mirage-item').each((i, el) => {
-        const nome = $(el).find('.item-name').text().trim();
-        if (nome) mirage.push(nome);
-      });
-
-      return { normal, mirage };
+      return { normal, mirage: [] };
 
     } catch (err) {
       console.log('❌ Erro no scraping:', err.message);
@@ -57,8 +60,8 @@ module.exports = (client) => {
 
       const { normal, mirage } = data;
 
-      if (!normal.length && !mirage.length) {
-        console.log('⚠️ Nada encontrado (site pode ter mudado)');
+      if (!normal.length) {
+        console.log('⚠️ Nenhuma fruta encontrada');
         return;
       }
 
@@ -69,12 +72,12 @@ module.exports = (client) => {
         .addFields(
           {
             name: '🍏 Normal',
-            value: normal.length ? normal.join('\n') : 'Nenhuma',
+            value: normal.join('\n'),
             inline: true
           },
           {
             name: '🌌 Mirage',
-            value: mirage.length ? mirage.join('\n') : 'Indisponível',
+            value: 'Indisponível',
             inline: true
           }
         )
@@ -82,7 +85,7 @@ module.exports = (client) => {
 
       let ping = '';
       if (normal.length && normalRole) ping += `<@&${normalRole.id}> `;
-      if (mirage.length && mirageRole) ping += `<@&${mirageRole.id}> `;
+      if (mirageRole) ping += `<@&${mirageRole.id}> `;
 
       await canal.send({
         content: ping || null,
@@ -97,7 +100,7 @@ module.exports = (client) => {
   }
 
   client.once('ready', () => {
-    console.log('📦 Sistema de stock iniciado (SCRAPING)');
+    console.log('📦 Sistema de stock iniciado (SCRAPING FIX)');
 
     atualizarStock();
 
