@@ -7,6 +7,7 @@ const {
 const ticket = require('./ticket');
 const recrutamento = require('./recrutamento');
 const comandos = require('./comandos');
+const stock = require('./stock'); // 👈 ADICIONA ISSO
 
 // ===== CLIENT =====
 const client = new Client({
@@ -21,6 +22,7 @@ const client = new Client({
 ticket(client);
 recrutamento(client);
 comandos(client);
+stock(client); // 👈 E ISSO
 
 // ===== READY =====
 client.once('ready', () => {
