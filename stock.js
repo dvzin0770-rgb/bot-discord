@@ -17,8 +17,15 @@ module.exports = (client) => {
   async function atualizarStock() {
     try {
 
-      const canal = client.channels.cache.find(c => c.name.includes('stock'));
-      if (!canal) return;
+      // ✅ CANAL PELO ID (100% CERTO)
+      const canal = client.channels.cache.get('1485259856712568832');
+
+      if (!canal) {
+        console.log('❌ Canal não encontrado');
+        return;
+      }
+
+      console.log('📤 Canal encontrado, tentando enviar...');
 
       const normalRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Normal ping');
       const mirageRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Mirage ping');
@@ -70,6 +77,8 @@ module.exports = (client) => {
         content: ping || null,
         embeds: [embed]
       });
+
+      console.log('✅ Mensagem enviada!');
 
     } catch (err) {
       console.log('Erro geral stock:', err.message);
