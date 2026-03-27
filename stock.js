@@ -3,91 +3,85 @@ const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
 
+  async function pegarStock() {
+    try {
+      const res = await axios.get('https://api.bloxfruits.com/stock', {
+        timeout: 5000
+      });
+      return res.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function atualizarStock() {
     try {
 
-      const canal = client.channels.cache.find(c => c.name === '🛒丨ꜱᴛᴏᴄᴋ');
+      const canal = client.channels.cache.find(c => c.name.includes('stock'));
       if (!canal) return;
 
-      // ===== CARGOS =====
       const normalRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Normal ping');
       const mirageRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Mirage ping');
 
-      // ===== API COM PROTEÇÃO =====
-      const res = await axios.get('https://api.bloxfruits.com/stock', {
-        timeout: 5000
-      }).catch(() => null);
-
-      if (!res || !res.data) {
-        console.log('API não respondeu, ignorando...');
-        return;
+      // 🔁 tenta até 3 vezes
+      let data = null;
+      for (let i = 0; i < 3; i++) {
+        data = await pegarStock();
+        if (data) break;
       }
 
-      const data = res.data;
+      if (!data) {
+        console.log('❌ API morreu de vez, tentando depois...');
+        return;
+      }
 
       const normal = Array.isArray(data.normal) ? data.normal : [];
       const mirage = Array.isArray(data.mirage) ? data.mirage : [];
       const tempo = data.time || 'Desconhecido';
 
-      // ===== EMBED =====
       const embed = new EmbedBuilder()
         .setColor('#8A2BE2')
-        .setTitle('🛒 Blox Fruits Stock Atualizado')
-        .setDescription('Confira abaixo as frutas disponíveis agora:')
+        .setTitle('🛒 Blox Fruits Stock')
+        .setDescription('Atualização automática do stock:')
         .addFields(
           {
-            name: '🍏 Estoque Normal',
-            value: normal.length
-              ? `\`\`\`\n${normal.join('\n')}\n\`\`\``
-              : '```Nenhuma fruta```',
+            name: '🍏 Normal',
+            value: normal.length ? normal.join('\n') : 'Nenhuma',
             inline: true
           },
           {
-            name: '🌌 Estoque Mirage',
-            value: mirage.length
-              ? `\`\`\`\n${mirage.join('\n')}\n\`\`\``
-              : '```Indisponível```',
+            name: '🌌 Mirage',
+            value: mirage.length ? mirage.join('\n') : 'Indisponível',
             inline: true
           },
           {
-            name: '⏱️ Próximo Reset',
-            value: `\`${tempo}\``
+            name: '⏱️ Reset',
+            value: tempo
           }
         )
-        .setFooter({ text: 'Sistema automático • Blox Fruits' })
         .setTimestamp();
 
-      // ===== PING =====
-      let pingMensagem = '';
+      let ping = '';
 
-      if (normal.length && normalRole) {
-        pingMensagem += `<@&${normalRole.id}> `;
-      }
+      if (normal.length && normalRole) ping += `<@&${normalRole.id}> `;
+      if (mirage.length && mirageRole) ping += `<@&${mirageRole.id}> `;
 
-      if (mirage.length && mirageRole) {
-        pingMensagem += `<@&${mirageRole.id}> `;
-      }
-
-      // ===== ENVIO =====
       await canal.send({
-        content: pingMensagem || null,
+        content: ping || null,
         embeds: [embed]
       });
 
     } catch (err) {
-      console.log('Erro no stock (seguro):', err.message);
+      console.log('Erro geral stock:', err.message);
     }
   }
 
-  // ===== INICIAR =====
   client.once('ready', () => {
     console.log('📦 Sistema de stock iniciado');
 
     atualizarStock();
 
-    setInterval(() => {
-      atualizarStock();
-    }, 1000 * 60 * 10); // 10 minutos
+    setInterval(atualizarStock, 1000 * 60 * 10);
   });
 
 };
