@@ -23,6 +23,7 @@ module.exports = (client) => {
 
   const cargosLevel = [5, 10, 20, 30, 50];
 
+  // ===== XP / LEVEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -35,13 +36,11 @@ module.exports = (client) => {
 
     const newLevel = getLevel(db[id].mensagens);
 
-    // UP DE LEVEL
     if (newLevel > db[id].level) {
       db[id].level = newLevel;
 
       await message.reply(`🎉 ${message.author} subiu para o nível ${newLevel}!`);
 
-      // DAR CARGO SE FOR LEVEL ESPECÍFICO
       if (cargosLevel.includes(newLevel)) {
         let role = message.guild.roles.cache.find(r => r.name === `lvl-${newLevel}`);
 
@@ -60,62 +59,77 @@ module.exports = (client) => {
     saveDB(db);
   });
 
-  // ===== RANKING =====
+  // ===== !LEVEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (message.content !== '!rank') return;
+    if (!message.content.startsWith('!level')) return;
+
+    const db = getDB();
+
+    const user = message.mentions.users.first() || message.author;
+    const data = db[user.id] || { mensagens: 0, level: 0 };
+
+    const embed = new EmbedBuilder()
+      .setTitle('📊 Level')
+      .setDescription(`${user}`)
+      .addFields(
+        { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
+        { name: '📈 Nível', value: `${data.level}`, inline: true }
+      )
+      .setColor('#5865F2');
+
+    message.reply({ embeds: [embed] });
+  });
+
+  // ===== !TOP =====
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (message.content !== '!top') return;
 
     const db = getDB();
 
     const ranking = Object.entries(db)
+      .sort((a, b) => b[1].mensagens - a[1].mensagens)
+      .slice(0, 10);
+
+    const desc = ranking.map((user, i) => {
+      return `**${i + 1}°** <@${user[0]}> - ${user[1].mensagens} msgs`;
+    }).join('\n');
+
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Top 10 Mensagens')
+      .setDescription(desc || 'Sem dados')
+      .setColor('#FFD700');
+
+    message.reply({ embeds: [embed] });
+  });
+
+  // ===== !PERFIL =====
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (!message.content.startsWith('!perfil')) return;
+
+    const db = getDB();
+
+    const user = message.mentions.users.first() || message.author;
+    const data = db[user.id] || { mensagens: 0, level: 0 };
+
+    const ranking = Object.entries(db)
       .sort((a, b) => b[1].mensagens - a[1].mensagens);
 
-    let page = 0;
-    const perPage = 5;
+    const pos = ranking.findIndex(u => u[0] === user.id) + 1;
 
-    function gerarEmbed() {
-      const start = page * perPage;
-      const current = ranking.slice(start, start + perPage);
+    const embed = new EmbedBuilder()
+      .setTitle('👤 Perfil')
+      .setDescription(`${user}`)
+      .addFields(
+        { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
+        { name: '📈 Nível', value: `${data.level}`, inline: true },
+        { name: '🏆 Ranking', value: `#${pos || 'N/A'}`, inline: true }
+      )
+      .setColor('#00FFAA');
 
-      const desc = current.map((user, i) => {
-        const pos = start + i + 1;
-        return `**${pos}°** <@${user[0]}>: ${user[1].mensagens} mensagens`;
-      }).join('\n');
-
-      return new EmbedBuilder()
-        .setTitle('🏆 Ranking de Mensagens')
-        .setDescription(desc || 'Sem dados')
-        .setColor('#FFD700')
-        .setFooter({ text: `Página ${page + 1}` });
-    }
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('prev').setLabel('⬅️').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('next').setLabel('➡️').setStyle(ButtonStyle.Secondary)
-    );
-
-    const msg = await message.reply({
-      embeds: [gerarEmbed()],
-      components: [row]
-    });
-
-    const collector = msg.createMessageComponentCollector({ time: 60000 });
-
-    collector.on('collect', async (i) => {
-      if (i.user.id !== message.author.id)
-        return i.reply({ content: '❌ Só quem abriu pode usar.', ephemeral: true });
-
-      if (i.customId === 'next') page++;
-      if (i.customId === 'prev') page--;
-
-      if (page < 0) page = 0;
-      if (page >= Math.ceil(ranking.length / perPage)) page--;
-
-      await i.update({
-        embeds: [gerarEmbed()],
-        components: [row]
-      });
-    });
+    message.reply({ embeds: [embed] });
   });
 
 };
