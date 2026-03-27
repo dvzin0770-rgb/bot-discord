@@ -1,13 +1,11 @@
-const {
-  Client,
-  GatewayIntentBits
-} = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 // ===== IMPORTAR ARQUIVOS =====
 const ticket = require('./ticket');
 const recrutamento = require('./recrutamento');
 const comandos = require('./comandos');
-const stock = require('./stock'); // 👈 STOCK
+const stock = require('./stock');      // sistema de stock (Blox Fruits)
+const eventos = require('./eventos');  // sistema de eventos/sorteios
 
 // ===== CLIENT =====
 const client = new Client({
@@ -19,10 +17,11 @@ const client = new Client({
 });
 
 // ===== ATIVAR SISTEMAS =====
-ticket(client);
-recrutamento(client);
-comandos(client);
-stock(client); // 👈 ATIVA STOCK
+ticket(client);       // tickets
+recrutamento(client); // recrutamento
+comandos(client);     // comandos gerais (!ping, !clear, !perfil, etc)
+stock(client);        // stock do Blox Fruits
+eventos(client);      // sorteios/eventos
 
 // ===== READY =====
 client.once('ready', () => {
