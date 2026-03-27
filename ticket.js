@@ -3,9 +3,10 @@ module.exports = (client) => {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
-    PermissionsBitField
+    ButtonStyle
   } = require('discord.js');
+
+  const STAFF_ROLE_NAME = '⃤⃟⃝Suporte';
 
   client.once('ready', async () => {
     const canal = client.channels.cache.find(c => c.name === '❄️︱𝚜𝚞𝚙𝚘𝚛𝚝𝚎');
@@ -41,7 +42,11 @@ module.exports = (client) => {
     try {
       if (!interaction.isButton()) return;
 
-      const staffRole = interaction.guild.roles.cache.find(r => r.name === 'Staff');
+      const staffRole = interaction.guild.roles.cache.find(
+        r => r.name === STAFF_ROLE_NAME
+      );
+
+      const isStaff = staffRole && interaction.member.roles.cache.has(staffRole.id);
 
       // ===== ABRIR TICKET =====
       if (interaction.customId === 'abrir_ticket') {
@@ -83,7 +88,7 @@ module.exports = (client) => {
             `Olá ${interaction.user}!\n\n` +
             `Explique seu problema com detalhes.\n` +
             `A equipe irá te responder em breve.\n\n` +
-            `🔒 Apenas você e a staff podem ver este canal.`
+            `🔒 Apenas você e a equipe podem ver este canal.`
           );
 
         const row = new ActionRowBuilder().addComponents(
@@ -103,54 +108,67 @@ module.exports = (client) => {
             .setStyle(ButtonStyle.Danger)
         );
 
-        await canal.send({ content: `${interaction.user}`, embeds: [embed], components: [row] });
+        await canal.send({
+          content: `${interaction.user}`,
+          embeds: [embed],
+          components: [row]
+        });
 
         return interaction.editReply({
           content: `✅ Ticket criado: ${canal}`
         });
       }
 
-      // ===== ASSUMIR (SÓ STAFF) =====
+      // ===== ASSUMIR =====
       if (interaction.customId === 'assumir_ticket') {
 
-        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+        if (!isStaff) {
           return interaction.reply({
-            content: '❌ Apenas staff pode usar isso.',
+            content: '❌ Apenas a equipe pode usar isso.',
             ephemeral: true
           });
         }
 
         return interaction.reply({
           content: `👮 ${interaction.user} assumiu este ticket.`,
-          ephemeral: false
         });
       }
 
-      // ===== AVISAR (SÓ STAFF) =====
+      // ===== AVISAR =====
       if (interaction.customId === 'avisar_usuario') {
 
-        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+        if (!isStaff) {
           return interaction.reply({
-            content: '❌ Apenas staff pode usar isso.',
+            content: '❌ Apenas a equipe pode usar isso.',
             ephemeral: true
           });
         }
 
-        await interaction.channel.send(`🔔 ${interaction.user} marcou você para responder.`);
-        return interaction.reply({ content: 'Aviso enviado!', ephemeral: true });
+        await interaction.channel.send(
+          `🔔 ${interaction.user} pediu atenção no ticket!`
+        );
+
+        return interaction.reply({
+          content: '✅ Aviso enviado!',
+          ephemeral: true
+        });
       }
 
-      // ===== FECHAR (SÓ STAFF) =====
+      // ===== FECHAR =====
       if (interaction.customId === 'fechar_ticket') {
 
-        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+        if (!isStaff) {
           return interaction.reply({
-            content: '❌ Apenas staff pode fechar o ticket.',
+            content: '❌ Apenas a equipe pode fechar.',
             ephemeral: true
           });
         }
 
-        await interaction.reply({ content: '🔒 Fechando ticket...', ephemeral: true });
+        await interaction.reply({
+          content: '🔒 Fechando ticket...',
+          ephemeral: true
+        });
+
         setTimeout(() => {
           interaction.channel.delete().catch(() => {});
         }, 2000);
