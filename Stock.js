@@ -13,15 +13,23 @@ module.exports = (client) => {
       const normalRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Normal ping');
       const mirageRole = canal.guild.roles.cache.find(r => r.name === '⃤⃟⃝Mirage ping');
 
-      // ===== API =====
-      const res = await axios.get('https://api.bloxfruits.com/stock');
+      // ===== API COM PROTEÇÃO =====
+      const res = await axios.get('https://api.bloxfruits.com/stock', {
+        timeout: 5000
+      }).catch(() => null);
+
+      if (!res || !res.data) {
+        console.log('API não respondeu, ignorando...');
+        return;
+      }
+
       const data = res.data;
 
-      const normal = data.normal || [];
-      const mirage = data.mirage || [];
+      const normal = Array.isArray(data.normal) ? data.normal : [];
+      const mirage = Array.isArray(data.mirage) ? data.mirage : [];
       const tempo = data.time || 'Desconhecido';
 
-      // ===== EMBED BONITO =====
+      // ===== EMBED =====
       const embed = new EmbedBuilder()
         .setColor('#8A2BE2')
         .setTitle('🛒 Blox Fruits Stock Atualizado')
@@ -49,7 +57,7 @@ module.exports = (client) => {
         .setFooter({ text: 'Sistema automático • Blox Fruits' })
         .setTimestamp();
 
-      // ===== PING INTELIGENTE =====
+      // ===== PING =====
       let pingMensagem = '';
 
       if (normal.length && normalRole) {
@@ -67,13 +75,19 @@ module.exports = (client) => {
       });
 
     } catch (err) {
-      console.log('Erro no stock:', err.message);
+      console.log('Erro no stock (seguro):', err.message);
     }
   }
 
+  // ===== INICIAR =====
   client.once('ready', () => {
+    console.log('📦 Sistema de stock iniciado');
+
     atualizarStock();
-    setInterval(atualizarStock, 1000 * 60 * 10); // 10 minutos
+
+    setInterval(() => {
+      atualizarStock();
+    }, 1000 * 60 * 10); // 10 minutos
   });
 
 };
