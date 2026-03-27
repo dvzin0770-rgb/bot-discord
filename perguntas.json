@@ -1,0 +1,182 @@
+[
+  {
+    "pergunta": "Qual acessório dá +15% de dano em ataques de espada?",
+    "alternativas": ["Swordsman Hat", "Dark Coat", "Pale Scarf", "Warrior Helmet"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta é considerada a mais rara atualmente?",
+    "alternativas": ["Dragon", "Leopard", "Kitsune", "Dough"],
+    "resposta": 2,
+    "dificuldade": "dificil"
+  },
+  {
+    "pergunta": "Qual NPC vende espadas no First Sea?",
+    "alternativas": ["Sword Dealer", "Blox Dealer", "Fruit Seller", "Weapon Master"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual nível é necessário para ir para o Second Sea?",
+    "alternativas": ["500", "700", "800", "1000"],
+    "resposta": 1,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual fruta permite voar naturalmente?",
+    "alternativas": ["Light", "Flame", "Ice", "Dark"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual boss dropa a Dark Coat?",
+    "alternativas": ["Darkbeard", "Shanks", "Whitebeard", "Kaido"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta é famosa por stun em PvP?",
+    "alternativas": ["Ice", "Flame", "Spin", "Chop"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual é o nível máximo atualmente?",
+    "alternativas": ["2400", "2450", "2550", "2600"],
+    "resposta": 2,
+    "dificuldade": "dificil"
+  },
+  {
+    "pergunta": "Qual NPC permite resetar status?",
+    "alternativas": ["Plokster", "Blox Dealer", "Blacksmith", "Fruit Seller"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual espada é usada para obter a True Triple Katana?",
+    "alternativas": ["Saber", "Katana", "Shisui", "Wando"],
+    "resposta": 2,
+    "dificuldade": "dificil"
+  },
+  {
+    "pergunta": "Qual fruta é imune a ataques físicos?",
+    "alternativas": ["Logia", "Zoan", "Paramecia", "Beast"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual ilha é conhecida como Skylands?",
+    "alternativas": ["Upper Sky", "Marineford", "Jungle", "Desert"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual boss dropa o Saber?",
+    "alternativas": ["Saber Expert", "Shanks", "Darkbeard", "Enel"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta tem transformação em dragão?",
+    "alternativas": ["Dragon", "Phoenix", "Leopard", "Kitsune"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual item é necessário para spawnar Darkbeard?",
+    "alternativas": ["Fist of Darkness", "Key", "Orb", "Core"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual raça tem habilidade de velocidade?",
+    "alternativas": ["Mink", "Human", "Fishman", "Skypiean"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta permite atravessar objetos?",
+    "alternativas": ["Door", "Dark", "Flame", "Bomb"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual boss dropa o Pole?",
+    "alternativas": ["Enel", "Shanks", "Kaido", "Akainu"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual fruta é focada em cura?",
+    "alternativas": ["Phoenix", "Light", "Ice", "Flame"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual ilha tem neve no First Sea?",
+    "alternativas": ["Snow Island", "Desert", "Jungle", "Marineford"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual espada é considerada uma das melhores para PvP?",
+    "alternativas": ["CDK", "Katana", "Cutlass", "Pipe"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta é usada para farm por causa do dano em área?",
+    "alternativas": ["Magma", "Spin", "Chop", "Bomb"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual boss dropa o Spikey Trident?",
+    "alternativas": ["Dough King", "Kaido", "Enel", "Shanks"],
+    "resposta": 0,
+    "dificuldade": "dificil"
+  },
+  {
+    "pergunta": "Qual é a moeda principal do jogo?",
+    "alternativas": ["Beli", "Robux", "Gold", "Coins"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual fruta é famosa por combos rápidos?",
+    "alternativas": ["Dough", "Spin", "Bomb", "Chop"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual ilha é a última do First Sea?",
+    "alternativas": ["Fountain City", "Jungle", "Desert", "Sky"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta é considerada troll?",
+    "alternativas": ["Spin", "Kitsune", "Dragon", "Leopard"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual boss é necessário para avançar pro Second Sea?",
+    "alternativas": ["Ice Admiral", "Shanks", "Kaido", "Enel"],
+    "resposta": 0,
+    "dificuldade": "medio"
+  },
+  {
+    "pergunta": "Qual fruta tem ataque de terremoto?",
+    "alternativas": ["Quake", "Dark", "Light", "Ice"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  },
+  {
+    "pergunta": "Qual raça pode respirar debaixo d’água?",
+    "alternativas": ["Fishman", "Human", "Mink", "Skypiean"],
+    "resposta": 0,
+    "dificuldade": "facil"
+  }
+]
