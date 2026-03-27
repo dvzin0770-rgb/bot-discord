@@ -14,17 +14,17 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions // necessário para reação de emojis
+    GatewayIntentBits.GuildMessageReactions // necessário para reaction roles
   ]
 });
 
 // ===== ATIVAR SISTEMAS =====
-ticket(client);       // tickets
-recrutamento(client); // recrutamento
-comandos(client);     // comandos gerais (!ping, !clear, !perfil, etc)
-stock(client);        // stock do Blox Fruits
-eventos(client);      // sorteios/eventos
-pings(client);        // painel de pings
+ticket(client);
+recrutamento(client);
+comandos(client);
+stock(client);
+eventos(client);
+pings(client); // painel de pings
 
 // ===== READY =====
 client.once('ready', () => {
