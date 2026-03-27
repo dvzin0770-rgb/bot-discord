@@ -2,10 +2,10 @@ const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
 
-  // Canal onde será enviado o painel
-  const CANAL_PAINEL = '🔴丨𝗣𝗜𝗡𝗚𝗦';
+  // nome exato do canal
+  const CANAL_PAINEL = '🔴丨pɪɴɢs';
 
-  // Lista de pings: emoji, nome estilizado, nome do cargo, descrição e cor
+  // lista de pings
   const pings = [
     { emoji: '🔴', name: '𝗣𝗜𝗡𝗚𝗦', role: 'ping geral', desc: 'Receba notificações gerais', color: 'Red' },
     { emoji: '🎉', name: '𝗘𝗩𝗘𝗡𝗧𝗢𝗦', role: 'ping eventos', desc: 'Notificações de eventos e sorteios', color: 'Purple' },
@@ -16,34 +16,35 @@ module.exports = (client) => {
     { emoji: '❗❓', name: '𝗩𝗔𝗟𝗘-𝗢𝗨-𝗡𝗔̃𝗢-𝗩𝗔𝗟𝗘', role: 'ping vale ou não vale', desc: 'Avisos de vale ou não vale', color: 'Orange' }
   ];
 
-  let painelMsg; // só uma mensagem do painel
+  let painelMsg; // para garantir apenas uma mensagem
 
-  // ===== Envia painel no ready =====
   client.on('ready', async () => {
     try {
-      const canal = client.channels.cache.find(c => c.name === CANAL_PAINEL);
+      const guild = client.guilds.cache.first();
+      if (!guild) return console.log('Nenhuma guild encontrada');
+
+      const canais = await guild.channels.fetch();
+      const canal = canais.find(c => c.name === CANAL_PAINEL);
       if (!canal) return console.log(`Canal "${CANAL_PAINEL}" não encontrado`);
 
-      // cria embed do painel
+      // embed do painel
       const embed = new EmbedBuilder()
         .setTitle('🎨 Painel de Pings')
         .setDescription(pings.map(p => `${p.emoji} │ ${p.name} → ${p.desc}`).join('\n'))
         .setColor('#8A2BE2');
 
-      // envia apenas uma vez
       if (!painelMsg) {
         painelMsg = await canal.send({ embeds: [embed] });
-        for (const p of pings) {
-          await painelMsg.react(p.emoji);
-        }
-        console.log('📌 Painel de pings enviado!');
+        for (const p of pings) await painelMsg.react(p.emoji);
+        console.log('📌 Painel de pings enviado com sucesso!');
       }
+
     } catch (err) {
       console.error('Erro ao enviar painel de pings:', err);
     }
   });
 
-  // ===== Função auxiliar para criar ou pegar cargo =====
+  // função para criar ou pegar cargo
   async function getOrCreateRole(guild, roleName, color) {
     let role = guild.roles.cache.find(r => r.name === roleName);
     if (!role) {
@@ -56,7 +57,7 @@ module.exports = (client) => {
     return role;
   }
 
-  // ===== Dar cargo ao reagir =====
+  // dar cargo ao reagir
   client.on('messageReactionAdd', async (reaction, user) => {
     try {
       if (user.bot) return;
@@ -73,7 +74,7 @@ module.exports = (client) => {
     }
   });
 
-  // ===== Remover cargo ao remover reação =====
+  // remover cargo ao remover reação
   client.on('messageReactionRemove', async (reaction, user) => {
     try {
       if (user.bot) return;
