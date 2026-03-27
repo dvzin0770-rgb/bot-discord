@@ -4,9 +4,10 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const ticket = require('./ticket');
 const recrutamento = require('./recrutamento');
 const comandos = require('./comandos');
-const stock = require('./stock');      // sistema de stock (Blox Fruits)
-const eventos = require('./eventos');  // sistema de eventos/sorteios
-const pings = require('./pings');      // painel de pings (reaction roles)
+const stock = require('./stock');
+const eventos = require('./eventos');
+const pings = require('./pings');
+const quiz = require('./quiz'); // 👈 ADICIONADO
 
 // ===== CLIENT =====
 const client = new Client({
@@ -14,7 +15,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions // necessário para reaction roles
+    GatewayIntentBits.GuildMessageReactions
   ]
 });
 
@@ -24,7 +25,8 @@ recrutamento(client);
 comandos(client);
 stock(client);
 eventos(client);
-pings(client); // painel de pings
+pings(client);
+quiz(client); // 👈 ADICIONADO
 
 // ===== READY =====
 client.once('ready', () => {
