@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
 
@@ -23,7 +23,6 @@ module.exports = (client) => {
 
   const cargosLevel = [5, 10, 20, 30, 50];
 
-  // ===== XP / LEVEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -32,6 +31,7 @@ module.exports = (client) => {
 
     if (!db[id]) db[id] = { mensagens: 0, level: 0 };
 
+    // ===== XP =====
     db[id].mensagens += 1;
 
     const newLevel = getLevel(db[id].mensagens);
@@ -57,79 +57,67 @@ module.exports = (client) => {
     }
 
     saveDB(db);
-  });
 
-  // ===== !LEVEL =====
-  client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-    if (!message.content.startsWith('!level')) return;
+    // ===== COMANDOS =====
 
-    const db = getDB();
+    // !level
+    if (message.content.startsWith('!level')) {
+      const user = message.mentions.users.first() || message.author;
+      const data = db[user.id] || { mensagens: 0, level: 0 };
 
-    const user = message.mentions.users.first() || message.author;
-    const data = db[user.id] || { mensagens: 0, level: 0 };
+      const embed = new EmbedBuilder()
+        .setTitle('📊 Level')
+        .setDescription(`${user}`)
+        .addFields(
+          { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
+          { name: '📈 Nível', value: `${data.level}`, inline: true }
+        )
+        .setColor('#5865F2');
 
-    const embed = new EmbedBuilder()
-      .setTitle('📊 Level')
-      .setDescription(`${user}`)
-      .addFields(
-        { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
-        { name: '📈 Nível', value: `${data.level}`, inline: true }
-      )
-      .setColor('#5865F2');
+      return message.reply({ embeds: [embed] });
+    }
 
-    message.reply({ embeds: [embed] });
-  });
+    // !top
+    if (message.content === '!top') {
+      const ranking = Object.entries(db)
+        .sort((a, b) => b[1].mensagens - a[1].mensagens)
+        .slice(0, 10);
 
-  // ===== !TOP =====
-  client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-    if (message.content !== '!top') return;
+      const desc = ranking.map((user, i) => {
+        return `**${i + 1}°** <@${user[0]}> - ${user[1].mensagens} msgs`;
+      }).join('\n');
 
-    const db = getDB();
+      const embed = new EmbedBuilder()
+        .setTitle('🏆 Top 10 Mensagens')
+        .setDescription(desc || 'Sem dados')
+        .setColor('#FFD700');
 
-    const ranking = Object.entries(db)
-      .sort((a, b) => b[1].mensagens - a[1].mensagens)
-      .slice(0, 10);
+      return message.reply({ embeds: [embed] });
+    }
 
-    const desc = ranking.map((user, i) => {
-      return `**${i + 1}°** <@${user[0]}> - ${user[1].mensagens} msgs`;
-    }).join('\n');
+    // !perfil
+    if (message.content.startsWith('!perfil')) {
+      const user = message.mentions.users.first() || message.author;
+      const data = db[user.id] || { mensagens: 0, level: 0 };
 
-    const embed = new EmbedBuilder()
-      .setTitle('🏆 Top 10 Mensagens')
-      .setDescription(desc || 'Sem dados')
-      .setColor('#FFD700');
+      const ranking = Object.entries(db)
+        .sort((a, b) => b[1].mensagens - a[1].mensagens);
 
-    message.reply({ embeds: [embed] });
-  });
+      const pos = ranking.findIndex(u => u[0] === user.id) + 1;
 
-  // ===== !PERFIL =====
-  client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-    if (!message.content.startsWith('!perfil')) return;
+      const embed = new EmbedBuilder()
+        .setTitle('👤 Perfil')
+        .setDescription(`${user}`)
+        .addFields(
+          { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
+          { name: '📈 Nível', value: `${data.level}`, inline: true },
+          { name: '🏆 Ranking', value: `#${pos || 'N/A'}`, inline: true }
+        )
+        .setColor('#00FFAA');
 
-    const db = getDB();
+      return message.reply({ embeds: [embed] });
+    }
 
-    const user = message.mentions.users.first() || message.author;
-    const data = db[user.id] || { mensagens: 0, level: 0 };
-
-    const ranking = Object.entries(db)
-      .sort((a, b) => b[1].mensagens - a[1].mensagens);
-
-    const pos = ranking.findIndex(u => u[0] === user.id) + 1;
-
-    const embed = new EmbedBuilder()
-      .setTitle('👤 Perfil')
-      .setDescription(`${user}`)
-      .addFields(
-        { name: '📨 Mensagens', value: `${data.mensagens}`, inline: true },
-        { name: '📈 Nível', value: `${data.level}`, inline: true },
-        { name: '🏆 Ranking', value: `#${pos || 'N/A'}`, inline: true }
-      )
-      .setColor('#00FFAA');
-
-    message.reply({ embeds: [embed] });
   });
 
 };
