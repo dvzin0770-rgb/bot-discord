@@ -110,22 +110,46 @@ module.exports = (client) => {
         });
       }
 
-      // ===== ASSUMIR =====
+      // ===== ASSUMIR (SÓ STAFF) =====
       if (interaction.customId === 'assumir_ticket') {
+
+        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+          return interaction.reply({
+            content: '❌ Apenas staff pode usar isso.',
+            ephemeral: true
+          });
+        }
+
         return interaction.reply({
           content: `👮 ${interaction.user} assumiu este ticket.`,
           ephemeral: false
         });
       }
 
-      // ===== AVISAR =====
+      // ===== AVISAR (SÓ STAFF) =====
       if (interaction.customId === 'avisar_usuario') {
+
+        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+          return interaction.reply({
+            content: '❌ Apenas staff pode usar isso.',
+            ephemeral: true
+          });
+        }
+
         await interaction.channel.send(`🔔 ${interaction.user} marcou você para responder.`);
         return interaction.reply({ content: 'Aviso enviado!', ephemeral: true });
       }
 
-      // ===== FECHAR =====
+      // ===== FECHAR (SÓ STAFF) =====
       if (interaction.customId === 'fechar_ticket') {
+
+        if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+          return interaction.reply({
+            content: '❌ Apenas staff pode fechar o ticket.',
+            ephemeral: true
+          });
+        }
+
         await interaction.reply({ content: '🔒 Fechando ticket...', ephemeral: true });
         setTimeout(() => {
           interaction.channel.delete().catch(() => {});
