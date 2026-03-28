@@ -16,47 +16,48 @@ module.exports = (client) => {
   // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
 
-    console.log("📩 MSG RECEBIDA:", message.content); // DEBUG
+    console.log("📩 MSG RECEBIDA:", message.content);
 
     if (message.author.bot) return;
     if (!message.guild) return;
 
+    // 🔥 FALTAVA ISSO AQUI
+    if (message.content.toLowerCase() !== '!painel') return;
+
     const embed = new EmbedBuilder()
-  .setColor('#2b2d31')
-  .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
-  .setDescription(`1️⃣ Selecione o evento
+      .setColor('#2b2d31')
+      .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
+      .setDescription(`1️⃣ Selecione o evento
 2️⃣ Envie a prova no tópico
 3️⃣ Aguarde aprovação da staff
 
 📸 Prova obrigatória`);
 
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId('evento_menu')
-        .setPlaceholder('Escolha o evento')
-        .addOptions([
-          { label: '🐉 Leviathan', value: '3' },
-          { label: '🦈 Terror Shark', value: '1' },
-          { label: '🌊 Sea Beast', value: '1' },
-          { label: '🌋 Ilha do Vulcão', value: '2' },
-          { label: '👻 Navio Fantasma', value: '1' },
-          { label: '⚔️ Raids', value: '1' }
-        ]);
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('evento_menu')
+      .setPlaceholder('Escolha o evento')
+      .addOptions([
+        { label: '🐉 Leviathan', value: '3' },
+        { label: '🦈 Terror Shark', value: '1' },
+        { label: '🌊 Sea Beast', value: '1' },
+        { label: '🌋 Ilha do Vulcão', value: '2' },
+        { label: '👻 Navio Fantasma', value: '1' },
+        { label: '⚔️ Raids', value: '1' }
+      ]);
 
-      const row = new ActionRowBuilder().addComponents(menu);
+    const row = new ActionRowBuilder().addComponents(menu);
 
-      await message.channel.send({
-        embeds: [embed],
-        components: [row]
-      });
+    await message.channel.send({
+      embeds: [embed],
+      components: [row]
+    });
 
-      console.log("✅ Painel enviado"); // DEBUG
-    }
+    console.log("✅ Painel enviado");
   });
 
   // ===== INTERAÇÕES =====
   client.on('interactionCreate', async (interaction) => {
 
-    // ===== MENU =====
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId !== 'evento_menu') return;
 
@@ -108,7 +109,6 @@ module.exports = (client) => {
       });
     }
 
-    // ===== BOTÕES =====
     if (interaction.isButton()) {
 
       if (
