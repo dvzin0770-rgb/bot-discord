@@ -15,40 +15,39 @@ module.exports = (client) => {
   // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+    if (message.content !== '!painel') return;
 
-    if (message.content === '!painel') {
-
-      const embed = new EmbedBuilder()
-        .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
-        .setDescription(
+    const embed = new EmbedBuilder()
+      .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
+      .setDescription(
 `**Como funciona:**
-1️⃣ Selecione o evento abaixo
-2️⃣ Envie a prova no tópico criado
-3️⃣ Aguarde aprovação da staff
+1️⃣ Selecione o evento abaixo  
+2️⃣ Um tópico privado será criado  
+3️⃣ Envie sua prova lá  
+4️⃣ Aguarde a staff aprovar  
 
 📸 **Prova obrigatória:** imagem ou vídeo`
-        )
-        .setColor('#2b2d31');
+      )
+      .setColor('#2b2d31');
 
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId('select_evento')
-        .setPlaceholder('📌 Escolha o evento')
-        .addOptions([
-          { label: '🐉 Leviathan', description: '3 pontos', value: 'leviathan' },
-          { label: '🦈 Terroshark', description: '1 ponto', value: 'terroshark' },
-          { label: '🌊 Sea Beast', description: '1 ponto', value: 'seabeast' },
-          { label: '🌋 Ilha do Vulcão', description: '2 pontos', value: 'vulcao' },
-          { label: '👻 Navio Fantasma', description: '1 ponto', value: 'navio' },
-          { label: '⚔️ Raids', description: '1 ponto', value: 'raids' }
-        ]);
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('select_evento')
+      .setPlaceholder('📌 Escolha o evento')
+      .addOptions([
+        { label: '🐉 Leviathan', description: '3 pontos', value: '3_leviathan' },
+        { label: '🦈 Terroshark', description: '1 ponto', value: '1_terro' },
+        { label: '🌊 Sea Beast', description: '1 ponto', value: '1_sea' },
+        { label: '🌋 Vulcão', description: '2 pontos', value: '2_vulcao' },
+        { label: '👻 Navio Fantasma', description: '1 ponto', value: '1_navio' },
+        { label: '⚔️ Raids', description: '1 ponto', value: '1_raids' }
+      ]);
 
-      const row = new ActionRowBuilder().addComponents(menu);
+    const row = new ActionRowBuilder().addComponents(menu);
 
-      await message.channel.send({
-        embeds: [embed],
-        components: [row]
-      });
-    }
+    await message.channel.send({
+      embeds: [embed],
+      components: [row]
+    });
   });
 
   // ===== MENU =====
@@ -56,64 +55,55 @@ module.exports = (client) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
 
-    const mapaPontos = {
-      leviathan: 3,
-      terroshark: 1,
-      seabeast: 1,
-      vulcao: 2,
-      navio: 1,
-      raids: 1
-    };
+    try {
+      await interaction.deferReply({ ephemeral: true });
 
-    const pontos = mapaPontos[interaction.values[0]];
+      const [pontos] = interaction.values[0].split('_');
 
-    // pega cargo staff
-    const cargoStaff = interaction.guild.roles.cache.find(
-      r => r.name === '⃤⃟⃝Moderador Staff'
-    );
-
-    // ===== CRIA THREAD PRIVADA =====
-    const thread = await interaction.channel.threads.create({
-      name: `evento-${interaction.user.username}`,
-      autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread,
-      invitable: false
-    });
-
-    // adiciona user
-    await thread.members.add(interaction.user.id);
-
-    // adiciona staff
-    if (cargoStaff) {
-      await thread.permissionOverwrites.create(cargoStaff.id, {
-        ViewChannel: true,
-        SendMessages: true
+      // ===== CRIA THREAD PRIVADA =====
+      const thread = await interaction.channel.threads.create({
+        name: `evento-${interaction.user.username}`,
+        autoArchiveDuration: 1440,
+        type: ChannelType.PrivateThread,
+        reason: 'Registro de evento'
       });
+
+      // adiciona usuário
+      await thread.members.add(interaction.user.id).catch(() => {});
+
+      // adiciona TODOS staff automaticamente
+      const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
+      if (staffRole) {
+        staffRole.members.forEach(member => {
+          thread.members.add(member.id).catch(() => {});
+        });
+      }
+
+      // ===== BOTÕES =====
+      const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`aprovar_${interaction.user.id}_${pontos}`)
+          .setLabel('✅ Aprovar')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId(`recusar_${interaction.user.id}`)
+          .setLabel('❌ Recusar')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await thread.send({
+        content: `📸 ${interaction.user}, envie sua prova aqui.`,
+        components: [buttons]
+      });
+
+      await interaction.editReply({
+        content: `✅ Seu evento foi criado: ${thread}`
+      });
+
+    } catch (err) {
+      console.log('ERRO MENU:', err);
     }
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`aprovar_${interaction.user.id}_${pontos}`)
-        .setLabel('✅ Aprovar')
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId(`recusar_${interaction.user.id}`)
-        .setLabel('❌ Recusar')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    // 🔥 ENVIA SÓ NA THREAD (NÃO NO CANAL)
-    await thread.send({
-      content: `📸 ${interaction.user}, envie sua prova aqui.`,
-      components: [row]
-    });
-
-    // 🔥 RESPOSTA INVISÍVEL (NÃO VAI PRO CANAL)
-    await interaction.reply({
-      content: `✅ Seu evento foi criado.`,
-      ephemeral: true
-    });
   });
 
   // ===== BOTÕES =====
@@ -125,54 +115,68 @@ module.exports = (client) => {
       !interaction.customId.startsWith('recusar')
     ) return;
 
-    const cargoStaff = interaction.guild.roles.cache.find(
-      r => r.name === '⃤⃟⃝Moderador Staff'
-    );
+    try {
+      await interaction.deferReply({ ephemeral: true });
 
-    if (!interaction.member.roles.cache.has(cargoStaff?.id)) {
-      return interaction.reply({
-        content: '❌ Apenas staff.',
-        ephemeral: true
-      });
-    }
+      const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
 
-    const thread = interaction.channel;
-
-    // ===== RECUSAR =====
-    if (interaction.customId.startsWith('recusar')) {
-      await interaction.reply({ content: '❌ Evento recusado.', ephemeral: true });
-
-      setTimeout(async () => {
-        await thread.delete().catch(() => {});
-      }, 2000);
-    }
-
-    // ===== APROVAR =====
-    if (interaction.customId.startsWith('aprovar')) {
-
-      const partes = interaction.customId.split('_');
-      const userId = partes[1];
-      const pontos = parseInt(partes[2]);
-
-      let db = {};
-      if (fs.existsSync('./level.json')) {
-        db = JSON.parse(fs.readFileSync('./level.json'));
+      if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+        return interaction.editReply({
+          content: '❌ Apenas staff pode usar isso.'
+        });
       }
 
-      if (!db[userId]) db[userId] = { mensagens: 0, level: 0 };
+      const thread = interaction.channel;
 
-      db[userId].mensagens += pontos;
+      // ===== RECUSAR =====
+      if (interaction.customId.startsWith('recusar')) {
+        await interaction.editReply('❌ Evento recusado.');
 
-      fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
+        setTimeout(async () => {
+          await thread.delete().catch(() => {});
+        }, 2000);
+      }
 
-      await interaction.reply({
-        content: `✅ Aprovado (+${pontos})`,
-        ephemeral: true
-      });
+      // ===== APROVAR =====
+      if (interaction.customId.startsWith('aprovar')) {
 
-      setTimeout(async () => {
-        await thread.delete().catch(() => {});
-      }, 2000);
+        const partes = interaction.customId.split('_');
+        const userId = partes[1];
+        const pontos = parseInt(partes[2]);
+
+        let db = {};
+        if (fs.existsSync('./level.json')) {
+          db = JSON.parse(fs.readFileSync('./level.json'));
+        }
+
+        if (!db[userId]) {
+          db[userId] = { mensagens: 0, level: 0 };
+        }
+
+        db[userId].mensagens += pontos;
+
+        fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
+
+        // ranking
+        const ranking = Object.entries(db)
+          .map(([id, data]) => ({
+            id,
+            pontos: data.mensagens
+          }))
+          .sort((a, b) => b.pontos - a.pontos)
+          .slice(0, 10);
+
+        fs.writeFileSync('./ranking.json', JSON.stringify(ranking, null, 2));
+
+        await interaction.editReply(`✅ Evento aprovado (+${pontos} pontos)`);
+
+        setTimeout(async () => {
+          await thread.delete().catch(() => {});
+        }, 2000);
+      }
+
+    } catch (err) {
+      console.log('ERRO BOTÃO:', err);
     }
   });
 
