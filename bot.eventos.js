@@ -16,18 +16,18 @@ module.exports = (client) => {
 
     if (message.content === '!painel') {
 
-      console.log('COMANDO PAINEL DETECTADO'); // 👈 TESTE
+      console.log('COMANDO PAINEL DETECTADO');
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId('select_evento')
         .setPlaceholder('📌 Escolha o evento para registrar')
         .addOptions([
-          { label: 'Leviathan', description: '3 pontos', value: '3' },
-          { label: 'Terroshark', description: '1 ponto', value: '1' },
-          { label: 'Sea Beast', description: '1 ponto', value: '1' },
-          { label: 'Ilha do Vulcão', description: '2 pontos', value: '2' },
-          { label: 'Navio Fantasma', description: '1 ponto', value: '1' },
-          { label: 'Raids', description: '1 ponto', value: '1' }
+          { label: 'Leviathan', description: '3 pontos', value: 'leviathan_3' },
+          { label: 'Terroshark', description: '1 ponto', value: 'terro_1' },
+          { label: 'Sea Beast', description: '1 ponto', value: 'sea_1' },
+          { label: 'Ilha do Vulcão', description: '2 pontos', value: 'vulcao_2' },
+          { label: 'Navio Fantasma', description: '1 ponto', value: 'navio_1' },
+          { label: 'Raids', description: '1 ponto', value: 'raids_1' }
         ]);
 
       const row = new ActionRowBuilder().addComponents(menu);
@@ -44,7 +44,8 @@ module.exports = (client) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
 
-    const pontos = parseInt(interaction.values[0]);
+    const partes = interaction.values[0].split('_');
+    const pontos = parseInt(partes[1]);
 
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
@@ -99,11 +100,13 @@ module.exports = (client) => {
 
     const thread = interaction.channel;
 
+    // ===== RECUSAR =====
     if (interaction.customId.startsWith('recusar')) {
       await interaction.reply('❌ Evento recusado.');
       setTimeout(() => thread.delete(), 3000);
     }
 
+    // ===== APROVAR =====
     if (interaction.customId.startsWith('aprovar')) {
 
       const partes = interaction.customId.split('_');
@@ -118,6 +121,7 @@ module.exports = (client) => {
 
       fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
 
+      // 🔥 ATUALIZA RANKING DO SITE
       const rankingArray = Object.entries(db)
         .map(([id, data]) => ({
           nome: id,
