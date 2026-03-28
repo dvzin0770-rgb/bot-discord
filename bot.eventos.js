@@ -8,7 +8,8 @@ EmbedBuilder
 } = require('discord.js');
 
 const fs = require('fs');
-const DB_PATH = './banco-eventos.json';
+const path = require('path');
+const DB_PATH = path.join(__dirname, 'banco-eventos.json');
 
 console.log("✅ bot.eventos.js carregado");
 
