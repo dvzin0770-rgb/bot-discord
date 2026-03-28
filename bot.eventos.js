@@ -162,6 +162,8 @@ if (interaction.isButton()) {
   // ✅ APROVAR (AGORA SALVA)
   if (interaction.customId.startsWith('evento_aprovar')) {
 
+    console.log("📁 Salvando em:", DB_PATH);
+
     const partes = interaction.customId.split('_');
     const userId = partes[2];
     const pontos = parseInt(partes[3]);
