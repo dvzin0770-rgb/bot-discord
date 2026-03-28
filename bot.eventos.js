@@ -7,6 +7,9 @@ ChannelType,
 EmbedBuilder
 } = require('discord.js');
 
+const fs = require('fs');
+const DB_PATH = './banco-eventos.json';
+
 console.log("✅ bot.eventos.js carregado");
 
 module.exports = (client) => {
@@ -80,10 +83,9 @@ if (interaction.isStringSelectMenu()) {
 
   const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);  
 
-  // adiciona o membro  
-await thread.members.add(membro.id);
+  await thread.members.add(membro.id);
 
-// 🔥 FORÇA PERMISSÃO COM DELAY (ESSA É A CHAVE)
+// 🔥 PERMISSÃO
 setTimeout(async () => {
   try {
     await thread.permissionOverwrites.edit(membro.id, {
@@ -92,27 +94,22 @@ setTimeout(async () => {
       ReadMessageHistory: true,
       AttachFiles: true
     });
-
-    console.log("✅ Permissão liberada pro membro no tópico");
   } catch (err) {
-    console.log("❌ Erro ao liberar permissão:", err);
+    console.log("Erro permissão:", err);
   }
-}, 1200);  
+}, 1200);
 
-  // adiciona staff  
   if (staffRole) {  
     for (const m of staffRole.members.values()) {  
       await thread.members.add(m.id).catch(() => {});  
     }  
   }  
 
-  // garante que está aberta  
   await thread.setArchived(false);  
   await thread.setLocked(false);  
 
-  // 🔥 GARANTE QUE ELE POSSA FALAR  
   await thread.send({  
-    content: `🔓 ${membro}, você já pode enviar sua prova aqui (imagem ou mensagem)!`  
+    content: `🎈 ${membro}, envie sua prova aqui 📸`  
   });  
 
   const botoes = new ActionRowBuilder().addComponents(  
@@ -128,7 +125,6 @@ setTimeout(async () => {
   );  
 
   await thread.send({  
-    content: `🎈 ${membro}, envie sua prova aqui 📸`,  
     components: [botoes]  
   });  
 
@@ -162,13 +158,27 @@ if (interaction.isButton()) {
     setTimeout(() => thread.delete().catch(() => {}), 2000);  
   }  
 
-  // APROVAR  
-  if (interaction.customId.startsWith('evento_aprovar')) {  
-    const partes = interaction.customId.split('_');  
-    const pontos = parseInt(partes[3]);  
+  // ✅ APROVAR (AGORA SALVA)
+  if (interaction.customId.startsWith('evento_aprovar')) {
 
-    await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);  
-    setTimeout(() => thread.delete().catch(() => {}), 2000);  
+    const partes = interaction.customId.split('_');
+    const userId = partes[2];
+    const pontos = parseInt(partes[3]);
+
+    let db = {};
+
+    if (fs.existsSync(DB_PATH)) {
+      db = JSON.parse(fs.readFileSync(DB_PATH));
+    }
+
+    if (!db[userId]) db[userId] = 0;
+    db[userId] += pontos;
+
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+
+    await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)\n🏆 Total: ${db[userId]} pontos`);
+
+    setTimeout(() => thread.delete().catch(() => {}), 2000);
   }  
 }
 
