@@ -23,7 +23,7 @@ module.exports = (client) => {
         '• Ter bom comportamento\n' +
         '• Seguir as regras do servidor\n\n' +
         '⏳ **Processo**\n' +
-        'Sua candidatura será analisada pela staff e você receberá uma resposta em breve.'
+        'Sua candidatura será analisada pela staff.'
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -137,8 +137,7 @@ module.exports = (client) => {
 
       await membro.roles.add(cargo);
 
-      await membro.send('🎉 Você foi aprovado na tripulação!');
-
+      // ❌ REMOVIDO DM
       await interaction.reply({ content: '✅ Aprovado e cargo entregue!' });
     }
 
@@ -148,8 +147,7 @@ module.exports = (client) => {
       const userId = interaction.customId.split('_')[1];
       const membro = await interaction.guild.members.fetch(userId);
 
-      await membro.send('❌ Você foi recusado.');
-
+      // ❌ REMOVIDO DM
       await interaction.reply({ content: '❌ Recrutamento recusado' });
     }
 
