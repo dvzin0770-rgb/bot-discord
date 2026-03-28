@@ -1,23 +1,17 @@
 fetch('ranking.json')
-  .then(response => response.json())
+  .then(res => res.json())
   .then(data => {
-    const ranking = document.getElementById('ranking');
+    const rankingDiv = document.getElementById('ranking');
 
-    ranking.innerHTML = "";
-
-    data.sort((a, b) => b.pontos - a.pontos);
-
-    data.forEach((player, i) => {
+    data.forEach((user, index) => {
       const item = document.createElement('div');
-
       item.innerHTML = `
-        <h2>#${i + 1} ${player.nome}</h2>
-        <p>⭐ ${player.pontos} pontos</p>
+        <h2>#${index + 1} ${user.nome}</h2>
+        <p>⭐ ${user.pontos} pontos</p>
       `;
-
-      ranking.appendChild(item);
+      rankingDiv.appendChild(item);
     });
   })
-  .catch(error => {
-    console.error("Erro:", error);
+  .catch(err => {
+    console.error('Erro ao carregar ranking:', err);
   });
