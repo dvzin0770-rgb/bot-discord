@@ -4,7 +4,8 @@ const {
   ButtonStyle,
   StringSelectMenuBuilder,
   ChannelType,
-  EmbedBuilder
+  EmbedBuilder,
+  PermissionFlagsBits
 } = require('discord.js');
 
 console.log("✅ bot.eventos.js carregado");
@@ -78,8 +79,14 @@ module.exports = (client) => {
 
       const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-      // adiciona o membro
+      // adiciona membro
       await thread.members.add(membro.id);
+
+      // 🔥 FORÇA PERMISSÃO PRA FALAR
+      await thread.permissionOverwrites.edit(membro.id, {
+        SendMessages: true,
+        ViewChannel: true
+      });
 
       // adiciona staff
       if (staffRole) {
@@ -88,14 +95,8 @@ module.exports = (client) => {
         }
       }
 
-      // garante que está aberta
       await thread.setArchived(false);
       await thread.setLocked(false);
-
-      // 🔥 GARANTE QUE ELE POSSA FALAR
-      await thread.send({
-        content: `🔓 ${membro}, você já pode enviar sua prova aqui (imagem ou mensagem)!`
-      });
 
       const botoes = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -110,7 +111,7 @@ module.exports = (client) => {
       );
 
       await thread.send({
-        content: `🎈 ${membro}, envie sua prova aqui 📸`,
+        content: `🔓 ${membro}, agora você PODE enviar sua prova aqui (imagem ou mensagem)! 📸`,
         components: [botoes]
       });
 
