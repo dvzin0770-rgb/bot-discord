@@ -51,7 +51,7 @@ module.exports = (client) => {
     }
   });
 
-  // ===== CRIAR TÓPICO =====
+  // ===== CRIAR TÓPICO (AGORA PÚBLICO) =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
@@ -62,23 +62,8 @@ module.exports = (client) => {
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
       autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread,
-      invitable: false
+      type: ChannelType.PublicThread // 🔥 CORRIGIDO AQUI
     });
-
-    await thread.members.add(interaction.user.id);
-
-    // 🔥 ADICIONA TODOS STAFF NO TÓPICO
-    const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
-
-    if (staffRole) {
-      const members = await interaction.guild.members.fetch();
-      const staffMembers = members.filter(m => m.roles.cache.has(staffRole.id));
-
-      for (const member of staffMembers.values()) {
-        await thread.members.add(member.id).catch(() => {});
-      }
-    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -97,9 +82,9 @@ module.exports = (client) => {
       components: [row]
     });
 
+    // ❌ SEM EPHEMERAL / SEM "DM FAKE"
     await interaction.reply({
-      content: `✅ Evento criado: ${thread}`,
-      ephemeral: true // 👈 ISSO NÃO MANDA DM
+      content: `✅ Evento criado: ${thread}`
     });
   });
 
@@ -120,8 +105,7 @@ module.exports = (client) => {
 
     if (!isStaff) {
       return interaction.reply({
-        content: '❌ Apenas staff pode usar isso.',
-        ephemeral: true
+        content: '❌ Apenas staff pode usar isso.'
       });
     }
 
@@ -129,7 +113,7 @@ module.exports = (client) => {
 
     // ❌ RECUSAR
     if (interaction.customId.startsWith('recusar')) {
-      await interaction.reply({ content: '❌ Evento recusado.', ephemeral: false });
+      await interaction.reply('❌ Evento recusado.');
       setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
 
@@ -161,10 +145,7 @@ module.exports = (client) => {
 
       fs.writeFileSync('./ranking.json', JSON.stringify(rankingArray, null, 2));
 
-      await interaction.reply({
-        content: `✅ Evento aprovado! (+${pontos} pontos)`,
-        ephemeral: false
-      });
+      await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
 
       setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
