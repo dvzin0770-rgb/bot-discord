@@ -43,5 +43,7 @@ client.once('ready', () => {
   console.log(`✅ Bot ligado como ${client.user.tag}`);
 });
 
+console.log("TOKEN:", process.env.TOKEN_BOT);
+
 // ===== LOGIN =====
 client.login(process.env.TOKEN_BOT);
