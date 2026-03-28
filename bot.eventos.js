@@ -159,7 +159,7 @@ if (interaction.isButton()) {
     setTimeout(() => thread.delete().catch(() => {}), 2000);  
   }  
 
-  // ✅ APROVAR (AGORA SALVA)
+  // ✅ APROVAR (SALVANDO CERTO)
   if (interaction.customId.startsWith('evento_aprovar')) {
 
     console.log("📁 Salvando em:", DB_PATH);
@@ -170,8 +170,14 @@ if (interaction.isButton()) {
 
     let db = {};
 
-    if (fs.existsSync(DB_PATH)) {
-      db = JSON.parse(fs.readFileSync(DB_PATH));
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        const raw = fs.readFileSync(DB_PATH, 'utf8');
+        db = raw ? JSON.parse(raw) : {};
+      }
+    } catch (err) {
+      console.log("Erro lendo JSON, resetando:", err);
+      db = {};
     }
 
     if (!db[userId]) db[userId] = 0;
