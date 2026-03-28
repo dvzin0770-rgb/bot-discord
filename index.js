@@ -9,6 +9,7 @@ const eventos = require('./bot.eventos');
 const pings = require('./pings');
 const quiz = require('./quiz');
 const level = require('./level');
+const rankEventos = require('./rank-eventos'); // 🔥 ADICIONADO
 
 // ===== CLIENT =====
 const client = new Client({
@@ -37,6 +38,7 @@ eventos(client);
 pings(client);
 quiz(client);
 level(client);
+rankEventos(client); // 🔥 ADICIONADO
 
 // ===== READY =====
 client.once('ready', () => {
