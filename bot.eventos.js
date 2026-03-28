@@ -51,7 +51,7 @@ module.exports = (client) => {
     }
   });
 
-  // ===== CRIAR TÓPICO (AGORA PÚBLICO) =====
+  // ===== CRIAR TÓPICO =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
@@ -61,8 +61,8 @@ module.exports = (client) => {
 
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
-      autoArchiveDuration: 1440,
-      type: ChannelType.PublicThread // 🔥 CORRIGIDO AQUI
+      autoArchiveDuration: 60,
+      type: ChannelType.PublicThread
     });
 
     const row = new ActionRowBuilder().addComponents(
@@ -82,10 +82,8 @@ module.exports = (client) => {
       components: [row]
     });
 
-    // ❌ SEM EPHEMERAL / SEM "DM FAKE"
-    await interaction.reply({
-      content: `✅ Evento criado: ${thread}`
-    });
+    // 🔥 SEM REPLY = NÃO APARECE "DM FAKE"
+    await interaction.deferUpdate();
   });
 
   // ===== APROVAR / RECUSAR =====
@@ -105,7 +103,8 @@ module.exports = (client) => {
 
     if (!isStaff) {
       return interaction.reply({
-        content: '❌ Apenas staff pode usar isso.'
+        content: '❌ Apenas staff pode usar isso.',
+        ephemeral: true
       });
     }
 
@@ -113,8 +112,14 @@ module.exports = (client) => {
 
     // ❌ RECUSAR
     if (interaction.customId.startsWith('recusar')) {
-      await interaction.reply('❌ Evento recusado.');
-      setTimeout(() => thread.delete().catch(() => {}), 3000);
+      await interaction.update({
+        content: '❌ Evento recusado.',
+        components: []
+      });
+
+      setTimeout(async () => {
+        await thread.delete().catch(() => {});
+      }, 2000);
     }
 
     // ✅ APROVAR
@@ -145,9 +150,14 @@ module.exports = (client) => {
 
       fs.writeFileSync('./ranking.json', JSON.stringify(rankingArray, null, 2));
 
-      await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
+      await interaction.update({
+        content: `✅ Evento aprovado! (+${pontos} pontos)`,
+        components: []
+      });
 
-      setTimeout(() => thread.delete().catch(() => {}), 3000);
+      setTimeout(async () => {
+        await thread.delete().catch(() => {});
+      }, 2000);
     }
   });
 
