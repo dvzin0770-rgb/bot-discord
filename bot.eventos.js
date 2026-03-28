@@ -22,7 +22,7 @@ module.exports = (client) => {
     }
   });
 
-  // ===== BOTÃO =====
+  // ===== CRIAR EVENTO =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -37,12 +37,50 @@ module.exports = (client) => {
 
       await thread.members.add(interaction.user.id);
 
-      await thread.send(`🎈 ${interaction.user} envie uma prova do seu evento 📸`);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('aprovar_evento')
+          .setLabel('✅ Aprovar')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId('recusar_evento')
+          .setLabel('❌ Recusar')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await thread.send({
+        content: `🎈 ${interaction.user} envie uma prova do seu evento 📸`,
+        components: [row]
+      });
 
       await interaction.reply({
         content: `✅ Seu evento foi criado: ${thread}`,
         ephemeral: true
       });
+    }
+  });
+
+  // ===== APROVAR / RECUSAR =====
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const cargoStaff = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
+
+    if (!cargoStaff || !interaction.member.roles.cache.has(cargoStaff.id)) {
+      return interaction.reply({ content: '❌ Apenas staff pode usar isso.', ephemeral: true });
+    }
+
+    const thread = interaction.channel;
+
+    if (interaction.customId === 'recusar_evento') {
+      await interaction.reply('❌ Evento recusado.');
+      setTimeout(() => thread.delete(), 3000);
+    }
+
+    if (interaction.customId === 'aprovar_evento') {
+      await interaction.reply('✅ Evento aprovado! (+1 ponto)');
+      setTimeout(() => thread.delete(), 3000);
     }
   });
 
