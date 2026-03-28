@@ -5,10 +5,10 @@ const ticket = require('./ticket');
 const recrutamento = require('./recrutamento');
 const comandos = require('./comandos');
 const stock = require('./stock');
-const eventos = require('./eventos');
+const eventos = require('./bot.eventos'); // 👈 CORRIGIDO
 const pings = require('./pings');
 const quiz = require('./quiz');
-const level = require('./level'); // 👈 ADICIONADO
+const level = require('./level');
 
 // ===== CLIENT =====
 const client = new Client({
@@ -30,10 +30,10 @@ ticket(client);
 recrutamento(client);
 comandos(client);
 stock(client);
-eventos(client);
+eventos(client); // 👈 VAI USAR O bot.eventos.js
 pings(client);
 quiz(client);
-level(client); // 👈 ADICIONADO
+level(client);
 
 // ===== READY =====
 client.once('ready', () => {
