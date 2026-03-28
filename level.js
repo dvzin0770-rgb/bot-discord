@@ -1,4 +1,6 @@
 const fs = require('fs');
+const RANKING_PATH = './ranking.json'; // 👈 ADICIONADO
+
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = (client) => {
