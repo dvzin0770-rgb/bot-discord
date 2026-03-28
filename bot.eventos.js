@@ -1,41 +1,49 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 
-client.on('messageCreate', async (message) => {
-  if (message.content === '!painel') {
+module.exports = (client) => {
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('criar_evento')
-        .setLabel('🎈 Criar Evento')
-        .setStyle(ButtonStyle.Primary)
-    );
+  // ===== PAINEL =====
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
 
-    message.channel.send({
-      content: 'Clique para criar seu evento:',
-      components: [row]
-    });
-  }
-});
+    if (message.content === '!painel') {
 
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('criar_evento')
+          .setLabel('🎈 Criar Evento')
+          .setStyle(ButtonStyle.Primary)
+      );
 
-  if (interaction.customId === 'criar_evento') {
+      message.channel.send({
+        content: 'Clique para criar seu evento:',
+        components: [row]
+      });
+    }
+  });
 
-    const thread = await interaction.channel.threads.create({
-      name: `evento-${interaction.user.username}`,
-      autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread,
-      reason: 'Novo evento'
-    });
+  // ===== BOTÃO =====
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
 
-    await thread.members.add(interaction.user.id);
+    if (interaction.customId === 'criar_evento') {
 
-    await thread.send(`🎈 ${interaction.user} envie uma prova do seu evento 📸`);
+      const thread = await interaction.channel.threads.create({
+        name: `evento-${interaction.user.username}`,
+        autoArchiveDuration: 1440,
+        type: ChannelType.PrivateThread,
+        reason: 'Novo evento'
+      });
 
-    await interaction.reply({
-      content: `✅ Seu evento foi criado: ${thread}`,
-      ephemeral: true
-    });
-  }
-});
+      await thread.members.add(interaction.user.id);
+
+      await thread.send(`🎈 ${interaction.user} envie uma prova do seu evento 📸`);
+
+      await interaction.reply({
+        content: `✅ Seu evento foi criado: ${thread}`,
+        ephemeral: true
+      });
+    }
+  });
+
+};
