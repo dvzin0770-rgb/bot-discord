@@ -16,8 +16,8 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    if (message.content.toLowerCase() === '!painel') {
-
+    if (message.content.toLowerCase().startsWith('!painel'))
+      
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
         .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
