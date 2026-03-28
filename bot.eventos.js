@@ -21,20 +21,14 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    if (message.content.toLowerCase() === '!painel') {
-
-      console.log("🔥 COMANDO !painel DETECTADO"); // DEBUG
-
-      const embed = new EmbedBuilder()
-        .setColor('#2b2d31')
-        .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
-        .setDescription(
-`1️⃣ Selecione o evento
+    const embed = new EmbedBuilder()
+  .setColor('#2b2d31')
+  .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
+  .setDescription(`1️⃣ Selecione o evento
 2️⃣ Envie a prova no tópico
 3️⃣ Aguarde aprovação da staff
 
-📸 Prova obrigatória`
-        );
+📸 Prova obrigatória`);
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId('evento_menu')
