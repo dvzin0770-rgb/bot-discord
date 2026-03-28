@@ -3,108 +3,146 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  ChannelType
+  ChannelType,
+  EmbedBuilder
 } = require('discord.js');
 
 module.exports = (client) => {
 
   const STAFF_ROLE_NAME = "Moderador Staff";
 
-  // PAINEL
+  // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
     if (message.content === '!painel') {
+
+      const embed = new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
+        .setDescription(
+`1️⃣ Selecione o evento
+2️⃣ Envie a prova no tópico
+3️⃣ Aguarde aprovação da staff
+
+📸 Prova obrigatória`
+        );
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId('selecionar_evento')
         .setPlaceholder('Escolha o evento')
         .addOptions([
-          { label: 'Sea Beast', value: 'sea_beast' },
-          { label: 'Terror Shark', value: 'terror_shark' }
+          { label: '🐉 Leviathan', value: '3' },
+          { label: '🦈 Terror Shark', value: '1' },
+          { label: '🌊 Sea Beast', value: '1' },
+          { label: '🌋 Ilha do Vulcão', value: '2' },
+          { label: '👻 Navio Fantasma', value: '1' },
+          { label: '⚔️ Raids', value: '1' }
         ]);
 
       const row = new ActionRowBuilder().addComponents(menu);
 
       await message.channel.send({
-        content: `📊 REGISTRO DE EVENTOS — FROSTVOW
-
-1️⃣ Selecione o evento
-2️⃣ Envie a prova no tópico
-3️⃣ Aguarde staff`,
+        embeds: [embed],
         components: [row]
       });
     }
   });
 
-  // INTERAÇÕES
+  // ===== INTERAÇÕES =====
   client.on('interactionCreate', async (interaction) => {
 
-    // SELECT MENU
+    // ===== MENU =====
     if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'selecionar_evento') {
+      if (interaction.customId !== 'selecionar_evento') return;
 
-        const membro = interaction.member;
-        const canal = interaction.channel;
-
-        const thread = await canal.threads.create({
-          name: `evento-${membro.user.username}`,
-          type: ChannelType.PrivateThread,
-          invitable: false
-        });
-
-        const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
-
-        // adiciona quem criou
-        await thread.members.add(membro.id);
-
-        // adiciona staff
-        if (staffRole) {
-          for (const m of staffRole.members.values()) {
-            await thread.members.add(m.id).catch(() => {});
-          }
-        }
-
-        const botoes = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('aprovar')
-            .setLabel('Aprovar')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId('recusar')
-            .setLabel('Recusar')
-            .setStyle(ButtonStyle.Danger)
-        );
-
-        await thread.send({
-          content: `📸 ${membro}, envie sua prova aqui.`,
-          components: [botoes]
-        });
-
-        await interaction.reply({
-          content: `Tópico criado: ${thread}`,
-          ephemeral: true
-        });
-      }
-    }
-
-    // BOTÕES
-    if (interaction.isButton()) {
-
+      const pontos = parseInt(interaction.values[0]);
       const membro = interaction.member;
+      const canal = interaction.channel;
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const thread = await canal.threads.create({
+        name: `evento-${membro.user.username}`,
+        type: ChannelType.PrivateThread,
+        invitable: false,
+        autoArchiveDuration: 1440
+      });
+
+      // 🔥 GARANTE VISIBILIDADE
+      await interaction.guild.members.fetch();
+
       const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-      if (!staffRole || !membro.roles.cache.has(staffRole.id)) {
-        return interaction.reply({ content: 'Apenas staff pode usar.', ephemeral: true });
+      // adiciona criador
+      await thread.members.add(membro.id);
+
+      // adiciona staff
+      if (staffRole) {
+        for (const m of staffRole.members.values()) {
+          await thread.members.add(m.id).catch(() => {});
+        }
+      }
+
+      // 🔥 GARANTE QUE PODEM FALAR
+      await thread.setLocked(false);
+      await thread.setArchived(false);
+
+      const botoes = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`aprovar_${membro.id}_${pontos}`)
+          .setLabel('✅ Aprovar')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId(`recusar_${membro.id}`)
+          .setLabel('❌ Recusar')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await thread.send({
+        content: `🎈 ${membro}, envie sua prova aqui 📸`,
+        components: [botoes]
+      });
+
+      await interaction.editReply({
+        content: `✅ Evento criado: ${thread}`
+      });
+    }
+
+    // ===== BOTÕES =====
+    if (interaction.isButton()) {
+
+      if (
+        !interaction.customId.startsWith('aprovar') &&
+        !interaction.customId.startsWith('recusar')
+      ) return;
+
+      const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
+
+      if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+        return interaction.reply({
+          content: '❌ Apenas staff pode usar isso.',
+          ephemeral: true
+        });
       }
 
       const thread = interaction.channel;
 
-      if (interaction.customId === 'aprovar') {
-        await interaction.reply('Evento aprovado!');
+      // ===== RECUSAR =====
+      if (interaction.customId.startsWith('recusar')) {
+        await interaction.reply('❌ Evento recusado.');
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
 
-      if (interaction.customId === 'recusar') {
-        await interaction.reply('Evento recusado!');
+      // ===== APROVAR =====
+      if (interaction.customId.startsWith('aprovar')) {
+
+        const partes = interaction.customId.split('_');
+        const pontos = parseInt(partes[2]);
+
+        await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
+
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
     }
