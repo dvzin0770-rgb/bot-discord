@@ -1,4 +1,4 @@
-fetch('ranking.json')
+fetch('./ranking.json')
   .then(res => res.json())
   .then(data => {
     const rankingDiv = document.getElementById('ranking');
