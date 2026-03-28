@@ -1,4 +1,4 @@
-fetch('./ranking.json')
+fetch('https://raw.githubusercontent.com/dvzin0770-rgb/bot-discord/main/ranking.json')
   .then(res => res.json())
   .then(data => {
     const rankingDiv = document.getElementById('ranking');
