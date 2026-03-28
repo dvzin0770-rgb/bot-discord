@@ -16,6 +16,8 @@ module.exports = (client) => {
 
     if (message.content === '!painel') {
 
+      console.log('COMANDO PAINEL DETECTADO'); // 👈 TESTE
+
       const menu = new StringSelectMenuBuilder()
         .setCustomId('select_evento')
         .setPlaceholder('📌 Escolha o evento para registrar')
@@ -79,7 +81,6 @@ module.exports = (client) => {
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // 👇 IGNORA qualquer botão que não seja desses
     if (
       !interaction.customId.startsWith('aprovar') &&
       !interaction.customId.startsWith('recusar')
@@ -98,13 +99,11 @@ module.exports = (client) => {
 
     const thread = interaction.channel;
 
-    // ===== RECUSAR =====
     if (interaction.customId.startsWith('recusar')) {
       await interaction.reply('❌ Evento recusado.');
       setTimeout(() => thread.delete(), 3000);
     }
 
-    // ===== APROVAR =====
     if (interaction.customId.startsWith('aprovar')) {
 
       const partes = interaction.customId.split('_');
@@ -119,7 +118,6 @@ module.exports = (client) => {
 
       fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
 
-      // 🔥 ATUALIZA RANKING DO SITE
       const rankingArray = Object.entries(db)
         .map(([id, data]) => ({
           nome: id,
