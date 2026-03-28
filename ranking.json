@@ -1,5 +1,4 @@
 [
-  { "nome": "Dvzin", "pontos": 999 }
-  { "nome": "Player2", "pontos": 90 },
-  { "nome": "Player3", "pontos": 50 }
+  { "nome": "Dvzin", "pontos": 999 },
+  { "nome": "Teste", "pontos": 500 }
 ]
