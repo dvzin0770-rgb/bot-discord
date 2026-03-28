@@ -16,7 +16,12 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    if (message.content.toLowerCase().startsWith('!painel')) {
+    // 🔥 DEBUG (pode apagar depois)
+    console.log("COMANDO RECEBIDO:", message.content);
+
+    if (!message.content.toLowerCase().startsWith('!painel')) return;
+
+    try {
 
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
@@ -47,6 +52,9 @@ module.exports = (client) => {
         embeds: [embed],
         components: [row]
       });
+
+    } catch (err) {
+      console.log("ERRO NO !painel:", err);
     }
   });
 
@@ -57,54 +65,60 @@ module.exports = (client) => {
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId !== 'selecionar_evento') return;
 
-      const pontos = parseInt(interaction.values[0]);
-      const membro = interaction.member;
-      const canal = interaction.channel;
+      try {
 
-      await interaction.deferReply({ ephemeral: true });
+        const pontos = parseInt(interaction.values[0]);
+        const membro = interaction.member;
+        const canal = interaction.channel;
 
-      const thread = await canal.threads.create({
-        name: `evento-${membro.user.username}`,
-        type: ChannelType.PrivateThread,
-        invitable: false,
-        autoArchiveDuration: 1440
-      });
+        await interaction.deferReply({ ephemeral: true });
 
-      const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
+        const thread = await canal.threads.create({
+          name: `evento-${membro.user.username}`,
+          type: ChannelType.PrivateThread,
+          invitable: false,
+          autoArchiveDuration: 1440
+        });
 
-      // adiciona quem criou
-      await thread.members.add(membro.id);
+        const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-      // adiciona staff
-      if (staffRole) {
-        for (const m of staffRole.members.values()) {
-          await thread.members.add(m.id).catch(() => {});
+        // adiciona quem criou
+        await thread.members.add(membro.id);
+
+        // adiciona staff
+        if (staffRole) {
+          for (const m of staffRole.members.values()) {
+            await thread.members.add(m.id).catch(() => {});
+          }
         }
+
+        await thread.setLocked(false);
+        await thread.setArchived(false);
+
+        const botoes = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`aprovar_${membro.id}_${pontos}`)
+            .setLabel('✅ Aprovar')
+            .setStyle(ButtonStyle.Success),
+
+          new ButtonBuilder()
+            .setCustomId(`recusar_${membro.id}`)
+            .setLabel('❌ Recusar')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await thread.send({
+          content: `🎈 ${membro}, envie sua prova aqui 📸`,
+          components: [botoes]
+        });
+
+        await interaction.editReply({
+          content: `✅ Evento criado: ${thread}`
+        });
+
+      } catch (err) {
+        console.log("ERRO NO MENU:", err);
       }
-
-      await thread.setLocked(false);
-      await thread.setArchived(false);
-
-      const botoes = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`aprovar_${membro.id}_${pontos}`)
-          .setLabel('✅ Aprovar')
-          .setStyle(ButtonStyle.Success),
-
-        new ButtonBuilder()
-          .setCustomId(`recusar_${membro.id}`)
-          .setLabel('❌ Recusar')
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      await thread.send({
-        content: `🎈 ${membro}, envie sua prova aqui 📸`,
-        components: [botoes]
-      });
-
-      await interaction.editReply({
-        content: `✅ Evento criado: ${thread}`
-      });
     }
 
     // ===== BOTÕES =====
@@ -126,19 +140,25 @@ module.exports = (client) => {
 
       const thread = interaction.channel;
 
-      // RECUSAR
-      if (interaction.customId.startsWith('recusar')) {
-        await interaction.reply('❌ Evento recusado.');
-        setTimeout(() => thread.delete().catch(() => {}), 2000);
-      }
+      try {
 
-      // APROVAR
-      if (interaction.customId.startsWith('aprovar')) {
-        const partes = interaction.customId.split('_');
-        const pontos = parseInt(partes[2]);
+        // RECUSAR
+        if (interaction.customId.startsWith('recusar')) {
+          await interaction.reply('❌ Evento recusado.');
+          setTimeout(() => thread.delete().catch(() => {}), 2000);
+        }
 
-        await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
-        setTimeout(() => thread.delete().catch(() => {}), 2000);
+        // APROVAR
+        if (interaction.customId.startsWith('aprovar')) {
+          const partes = interaction.customId.split('_');
+          const pontos = parseInt(partes[2]);
+
+          await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
+          setTimeout(() => thread.delete().catch(() => {}), 2000);
+        }
+
+      } catch (err) {
+        console.log("ERRO NOS BOTÕES:", err);
       }
     }
 
