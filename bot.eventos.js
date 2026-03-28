@@ -16,8 +16,8 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    if (message.content.toLowerCase().startsWith('!painel'))
-      
+    if (message.content.toLowerCase().startsWith('!painel')) {
+
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
         .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
@@ -70,12 +70,12 @@ module.exports = (client) => {
         autoArchiveDuration: 1440
       });
 
-      await interaction.guild.members.fetch();
-
       const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
+      // adiciona quem criou
       await thread.members.add(membro.id);
 
+      // adiciona staff
       if (staffRole) {
         for (const m of staffRole.members.values()) {
           await thread.members.add(m.id).catch(() => {});
@@ -126,11 +126,13 @@ module.exports = (client) => {
 
       const thread = interaction.channel;
 
+      // RECUSAR
       if (interaction.customId.startsWith('recusar')) {
         await interaction.reply('❌ Evento recusado.');
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
 
+      // APROVAR
       if (interaction.customId.startsWith('aprovar')) {
         const partes = interaction.customId.split('_');
         const pontos = parseInt(partes[2]);
