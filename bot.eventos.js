@@ -7,16 +7,23 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
+console.log("✅ bot.eventos.js carregado");
+
 module.exports = (client) => {
 
   const STAFF_ROLE_NAME = "Moderador Staff";
 
   // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
+
+    console.log("📩 MSG RECEBIDA:", message.content); // DEBUG
+
     if (message.author.bot) return;
     if (!message.guild) return;
 
     if (message.content.toLowerCase() === '!painel') {
+
+      console.log("🔥 COMANDO !painel DETECTADO"); // DEBUG
 
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
@@ -30,7 +37,7 @@ module.exports = (client) => {
         );
 
       const menu = new StringSelectMenuBuilder()
-        .setCustomId('evento_menu') // 🔥 EVITA CONFLITO
+        .setCustomId('evento_menu')
         .setPlaceholder('Escolha o evento')
         .addOptions([
           { label: '🐉 Leviathan', value: '3' },
@@ -47,6 +54,8 @@ module.exports = (client) => {
         embeds: [embed],
         components: [row]
       });
+
+      console.log("✅ Painel enviado"); // DEBUG
     }
   });
 
@@ -85,12 +94,12 @@ module.exports = (client) => {
 
       const botoes = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(`evento_aprovar_${membro.id}_${pontos}`) // 🔥 único
+          .setCustomId(`evento_aprovar_${membro.id}_${pontos}`)
           .setLabel('✅ Aprovar')
           .setStyle(ButtonStyle.Success),
 
         new ButtonBuilder()
-          .setCustomId(`evento_recusar_${membro.id}`) // 🔥 único
+          .setCustomId(`evento_recusar_${membro.id}`)
           .setLabel('❌ Recusar')
           .setStyle(ButtonStyle.Danger)
       );
@@ -124,13 +133,11 @@ module.exports = (client) => {
 
       const thread = interaction.channel;
 
-      // RECUSAR
       if (interaction.customId.startsWith('evento_recusar')) {
         await interaction.reply('❌ Evento recusado.');
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
 
-      // APROVAR
       if (interaction.customId.startsWith('evento_aprovar')) {
         const partes = interaction.customId.split('_');
         const pontos = parseInt(partes[3]);
