@@ -185,6 +185,8 @@ if (interaction.isButton()) {
 
     fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 
+    console.log("💾 Dados salvos:", db); // 👈 ESSA LINHA É A NOVA
+
     await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)\n🏆 Total: ${db[userId]} pontos`);
 
     setTimeout(() => thread.delete().catch(() => {}), 2000);
