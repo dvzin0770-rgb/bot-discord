@@ -11,7 +11,7 @@ const fs = require('fs');
 
 module.exports = (client) => {
 
-  // ===== PAINEL BONITO =====
+  // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -30,42 +30,18 @@ module.exports = (client) => {
 
 📸 **Prova obrigatória**: imagem ou vídeo`
         )
-        .setColor('#2b2d31'); // cor padrão bonita (dark)
+        .setColor('#2b2d31');
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId('select_evento')
         .setPlaceholder('📌 Escolha o evento')
         .addOptions([
-          {
-            label: '🐉 Leviathan',
-            description: 'Vale 3 pontos',
-            value: '3'
-          },
-          {
-            label: '🦈 Terroshark',
-            description: 'Vale 1 ponto',
-            value: '1'
-          },
-          {
-            label: '🌊 Sea Beast',
-            description: 'Vale 1 ponto',
-            value: '1'
-          },
-          {
-            label: '🌋 Ilha do Vulcão',
-            description: 'Vale 2 pontos',
-            value: '2'
-          },
-          {
-            label: '👻 Navio Fantasma',
-            description: 'Vale 1 ponto',
-            value: '1'
-          },
-          {
-            label: '⚔️ Raids',
-            description: 'Vale 1 ponto',
-            value: '1'
-          }
+          { label: '🐉 Leviathan', description: 'Vale 3 pontos', value: 'leviathan_3' },
+          { label: '🦈 Terroshark', description: 'Vale 1 ponto', value: 'terroshark_1' },
+          { label: '🌊 Sea Beast', description: 'Vale 1 ponto', value: 'seabeast_1' },
+          { label: '🌋 Ilha do Vulcão', description: 'Vale 2 pontos', value: 'vulcao_2' },
+          { label: '👻 Navio Fantasma', description: 'Vale 1 ponto', value: 'navio_1' },
+          { label: '⚔️ Raids', description: 'Vale 1 ponto', value: 'raids_1' }
         ]);
 
       const row = new ActionRowBuilder().addComponents(menu);
@@ -82,7 +58,8 @@ module.exports = (client) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
 
-    const pontos = parseInt(interaction.values[0]);
+    const partes = interaction.values[0].split('_');
+    const pontos = parseInt(partes[1]);
 
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
@@ -161,7 +138,6 @@ module.exports = (client) => {
 
       fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
 
-      // ranking
       const rankingArray = Object.entries(db)
         .map(([id, data]) => ({
           nome: id,
