@@ -14,18 +14,17 @@ module.exports = (client) => {
   const getDB = () => JSON.parse(fs.readFileSync(DB_PATH));
   const saveDB = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 
-  // 👇 ADICIONADO
+  // ✅ ATUALIZADO (DO JEITO CERTO)
   const atualizarRankingSite = (db) => {
-    const ranking = Object.entries(db)
-      .sort((a, b) => b[1].mensagens - a[1].mensagens)
+    const rankingArray = Object.entries(db)
+      .map(([id, data]) => ({
+        nome: id,
+        pontos: data.mensagens
+      }))
+      .sort((a, b) => b.pontos - a.pontos)
       .slice(0, 10);
 
-    const formatado = ranking.map((u) => ({
-      nome: `User-${u[0].slice(0, 4)}`,
-      pontos: u[1].mensagens
-    }));
-
-    fs.writeFileSync(RANKING_PATH, JSON.stringify(formatado, null, 2));
+    fs.writeFileSync(RANKING_PATH, JSON.stringify(rankingArray, null, 2));
   };
 
   const getLevel = (msgs) => Math.floor(msgs / 75);
@@ -65,7 +64,7 @@ module.exports = (client) => {
     }
 
     saveDB(db);
-    atualizarRankingSite(db); // 👈 ADICIONADO
+    atualizarRankingSite(db);
   });
 
   // ===== !LEVEL / !PERFIL =====
