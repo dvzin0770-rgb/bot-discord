@@ -12,6 +12,7 @@ const fs = require('fs');
 
 module.exports = (client) => {
 
+  // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -50,6 +51,7 @@ module.exports = (client) => {
     }
   });
 
+  // ===== CRIAR TÓPICO =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
@@ -66,10 +68,13 @@ module.exports = (client) => {
 
     await thread.members.add(interaction.user.id);
 
+    // 🔥 ADICIONA TODOS STAFF NO TÓPICO
     const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
 
     if (staffRole) {
-      const staffMembers = interaction.guild.members.cache.filter(m => m.roles.cache.has(staffRole.id));
+      const members = await interaction.guild.members.fetch();
+      const staffMembers = members.filter(m => m.roles.cache.has(staffRole.id));
+
       for (const member of staffMembers.values()) {
         await thread.members.add(member.id).catch(() => {});
       }
@@ -94,10 +99,11 @@ module.exports = (client) => {
 
     await interaction.reply({
       content: `✅ Evento criado: ${thread}`,
-      ephemeral: true
+      ephemeral: true // 👈 ISSO NÃO MANDA DM
     });
   });
 
+  // ===== APROVAR / RECUSAR =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -121,11 +127,13 @@ module.exports = (client) => {
 
     const thread = interaction.channel;
 
+    // ❌ RECUSAR
     if (interaction.customId.startsWith('recusar')) {
       await interaction.reply({ content: '❌ Evento recusado.', ephemeral: false });
       setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
 
+    // ✅ APROVAR
     if (interaction.customId.startsWith('aprovar')) {
 
       const partes = interaction.customId.split('_');
@@ -153,7 +161,10 @@ module.exports = (client) => {
 
       fs.writeFileSync('./ranking.json', JSON.stringify(rankingArray, null, 2));
 
-      await interaction.reply({ content: `✅ Evento aprovado! (+${pontos} pontos)`, ephemeral: false });
+      await interaction.reply({
+        content: `✅ Evento aprovado! (+${pontos} pontos)`,
+        ephemeral: false
+      });
 
       setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
