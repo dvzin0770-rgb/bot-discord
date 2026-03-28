@@ -78,16 +78,24 @@ module.exports = (client) => {
 
       const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
+      // adiciona o membro
       await thread.members.add(membro.id);
 
+      // adiciona staff
       if (staffRole) {
         for (const m of staffRole.members.values()) {
           await thread.members.add(m.id).catch(() => {});
         }
       }
 
+      // garante que está aberta
       await thread.setArchived(false);
       await thread.setLocked(false);
+
+      // 🔥 GARANTE QUE ELE POSSA FALAR
+      await thread.send({
+        content: `🔓 ${membro}, você já pode enviar sua prova aqui (imagem ou mensagem)!`
+      });
 
       const botoes = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
