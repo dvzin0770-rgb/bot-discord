@@ -6,7 +6,7 @@ const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBi
 
 eventos(client);
 
-client.once('ready', () => { console.log(✅ Bot ligado como ${client.user.tag}); });
+client.once('ready', () => { console.log('Bot ligado como ' + client.user.tag); }); });
 
 client.login(process.env.TOKEN);
 
