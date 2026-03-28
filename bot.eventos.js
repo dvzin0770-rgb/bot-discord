@@ -3,37 +3,75 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ChannelType
+  ChannelType,
+  EmbedBuilder
 } = require('discord.js');
 
 const fs = require('fs');
 
 module.exports = (client) => {
 
-  // ===== PAINEL =====
+  // ===== PAINEL BONITO =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     if (message.content === '!painel') {
 
-      console.log('COMANDO PAINEL DETECTADO');
+      const embed = new EmbedBuilder()
+        .setTitle('📊 REGISTRO DE EVENTOS — VOID LEGIONS')
+        .setDescription(
+`**Como funciona:**
+1️⃣ Selecione o evento abaixo
+2️⃣ Envie a prova no chat criado
+3️⃣ Aguarde aprovação da staff
+
+💎 **Fragments** — somente ranking  
+🏆 **Conquistas** — pontos definidos pela staff  
+
+📸 **Prova obrigatória**: imagem ou vídeo`
+        )
+        .setColor('#2b2d31'); // cor padrão bonita (dark)
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId('select_evento')
-        .setPlaceholder('📌 Escolha o evento para registrar')
+        .setPlaceholder('📌 Escolha o evento')
         .addOptions([
-          { label: 'Leviathan', description: '3 pontos', value: 'leviathan_3' },
-          { label: 'Terroshark', description: '1 ponto', value: 'terro_1' },
-          { label: 'Sea Beast', description: '1 ponto', value: 'sea_1' },
-          { label: 'Ilha do Vulcão', description: '2 pontos', value: 'vulcao_2' },
-          { label: 'Navio Fantasma', description: '1 ponto', value: 'navio_1' },
-          { label: 'Raids', description: '1 ponto', value: 'raids_1' }
+          {
+            label: '🐉 Leviathan',
+            description: 'Vale 3 pontos',
+            value: '3'
+          },
+          {
+            label: '🦈 Terroshark',
+            description: 'Vale 1 ponto',
+            value: '1'
+          },
+          {
+            label: '🌊 Sea Beast',
+            description: 'Vale 1 ponto',
+            value: '1'
+          },
+          {
+            label: '🌋 Ilha do Vulcão',
+            description: 'Vale 2 pontos',
+            value: '2'
+          },
+          {
+            label: '👻 Navio Fantasma',
+            description: 'Vale 1 ponto',
+            value: '1'
+          },
+          {
+            label: '⚔️ Raids',
+            description: 'Vale 1 ponto',
+            value: '1'
+          }
         ]);
 
       const row = new ActionRowBuilder().addComponents(menu);
 
       await message.channel.send({
-        content: '📊 **REGISTRO DE EVENTOS**\nSelecione abaixo:',
+        embeds: [embed],
         components: [row]
       });
     }
@@ -44,8 +82,7 @@ module.exports = (client) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
 
-    const partes = interaction.values[0].split('_');
-    const pontos = parseInt(partes[1]);
+    const pontos = parseInt(interaction.values[0]);
 
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
@@ -68,7 +105,7 @@ module.exports = (client) => {
     );
 
     await thread.send({
-      content: `🎈 ${interaction.user} envie uma prova do seu evento 📸`,
+      content: `🎈 ${interaction.user} envie a prova do evento 📸`,
       components: [row]
     });
 
@@ -113,7 +150,10 @@ module.exports = (client) => {
       const userId = partes[1];
       const pontos = parseInt(partes[2]);
 
-      const db = JSON.parse(fs.readFileSync('./level.json'));
+      let db = {};
+      if (fs.existsSync('./level.json')) {
+        db = JSON.parse(fs.readFileSync('./level.json'));
+      }
 
       if (!db[userId]) db[userId] = { mensagens: 0, level: 0 };
 
@@ -121,7 +161,7 @@ module.exports = (client) => {
 
       fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
 
-      // 🔥 ATUALIZA RANKING DO SITE
+      // ranking
       const rankingArray = Object.entries(db)
         .map(([id, data]) => ({
           nome: id,
