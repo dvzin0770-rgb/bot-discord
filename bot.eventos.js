@@ -1,4 +1,10 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const {
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType
+} = require('discord.js');
 
 module.exports = (client) => {
 
@@ -8,83 +14,134 @@ module.exports = (client) => {
 
     if (message.content === '!painel') {
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('criar_evento')
-          .setLabel('🎈 Criar Evento')
-          .setStyle(ButtonStyle.Primary)
-      );
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('select_evento')
+        .setPlaceholder('📌 Escolha o evento para registrar')
+        .addOptions([
+          {
+            label: 'Leviathan',
+            description: '3 pontos',
+            value: '3'
+          },
+          {
+            label: 'Terroshark',
+            description: '1 ponto',
+            value: '1'
+          },
+          {
+            label: 'Sea Beast',
+            description: '1 ponto',
+            value: '1'
+          },
+          {
+            label: 'Ilha do Vulcão',
+            description: '2 pontos',
+            value: '2'
+          },
+          {
+            label: 'Navio Fantasma',
+            description: '1 ponto',
+            value: '1'
+          },
+          {
+            label: 'Raids',
+            description: '1 ponto',
+            value: '1'
+          }
+        ]);
+
+      const row = new ActionRowBuilder().addComponents(menu);
 
       message.channel.send({
-        content: 'Clique para criar seu evento:',
+        content: '📊 **REGISTRO DE EVENTOS**\nSelecione abaixo:',
         components: [row]
       });
     }
   });
 
-  // ===== CRIAR EVENTO =====
+  // ===== SELECIONAR EVENTO =====
   client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
+    if (!interaction.isStringSelectMenu()) return;
 
-    if (interaction.customId !== 'criar_evento') return; // 👈 CORREÇÃO
+    if (interaction.customId === 'select_evento') {
 
-    const thread = await interaction.channel.threads.create({
-      name: `evento-${interaction.user.username}`,
-      autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread,
-      reason: 'Novo evento'
-    });
+      const pontos = parseInt(interaction.values[0]);
 
-    await thread.members.add(interaction.user.id);
+      const thread = await interaction.channel.threads.create({
+        name: `evento-${interaction.user.username}`,
+        autoArchiveDuration: 1440,
+        type: ChannelType.PrivateThread
+      });
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('aprovar_evento')
-        .setLabel('✅ Aprovar')
-        .setStyle(ButtonStyle.Success),
+      await thread.members.add(interaction.user.id);
 
-      new ButtonBuilder()
-        .setCustomId('recusar_evento')
-        .setLabel('❌ Recusar')
-        .setStyle(ButtonStyle.Danger)
-    );
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`aprovar_${interaction.user.id}_${pontos}`)
+          .setLabel('✅ Aprovar')
+          .setStyle(ButtonStyle.Success),
 
-    await thread.send({
-      content: `🎈 ${interaction.user} envie uma prova do seu evento 📸`,
-      components: [row]
-    });
+        new ButtonBuilder()
+          .setCustomId(`recusar_${interaction.user.id}`)
+          .setLabel('❌ Recusar')
+          .setStyle(ButtonStyle.Danger)
+      );
 
-    await interaction.reply({
-      content: `✅ Seu evento foi criado: ${thread}`,
-      ephemeral: true
-    });
+      await thread.send({
+        content: `🎈 ${interaction.user} envie uma prova do seu evento 📸`,
+        components: [row]
+      });
+
+      await interaction.reply({
+        content: `✅ Evento criado: ${thread}`,
+        ephemeral: true
+      });
+    }
   });
 
   // ===== APROVAR / RECUSAR =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // 👇 CORREÇÃO (IGNORA OUTROS BOTÕES)
-    if (
-      interaction.customId !== 'aprovar_evento' &&
-      interaction.customId !== 'recusar_evento'
-    ) return;
+    const cargoStaff = interaction.guild.roles.cache.find(
+      r => r.name === '⃤⃟⃝Moderador Staff'
+    );
 
-    const cargoStaff = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
-
-    if (!cargoStaff || !interaction.member.roles.cache.has(cargoStaff.id)) {
-      return interaction.reply({ content: '❌ Apenas staff pode usar isso.', ephemeral: true });
+    // ❗ só trava se NÃO for staff
+    if (!interaction.member.roles.cache.has(cargoStaff?.id)) {
+      return interaction.reply({
+        content: '❌ Apenas staff pode usar isso.',
+        ephemeral: true
+      });
     }
 
     const thread = interaction.channel;
 
-    if (interaction.customId === 'recusar_evento') {
+    // ===== RECUSAR =====
+    if (interaction.customId.startsWith('recusar')) {
       await interaction.reply('❌ Evento recusado.');
       setTimeout(() => thread.delete(), 3000);
     }
 
-    if (interaction.customId === 'aprovar_evento') {
-      await interaction.reply('✅ Evento aprovado! (+1 ponto)');
+    // ===== APROVAR =====
+    if (interaction.customId.startsWith('aprovar')) {
+
+      const partes = interaction.customId.split('_');
+      const userId = partes[1];
+      const pontos = parseInt(partes[2]);
+
+      // 👉 AQUI VAI SOMAR NO TEU LEVEL.JSON
+      const fs = require('fs');
+      const db = JSON.parse(fs.readFileSync('./level.json'));
+
+      if (!db[userId]) db[userId] = { mensagens: 0, level: 0 };
+
+      db[userId].mensagens += pontos;
+
+      fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
+
+      await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
+
       setTimeout(() => thread.delete(), 3000);
     }
   });
