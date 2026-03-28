@@ -26,7 +26,7 @@ module.exports = (client) => {
 2️⃣ Envie a prova no tópico criado
 3️⃣ Aguarde aprovação da staff
 
-📸 **Prova obrigatória**: imagem ou vídeo`
+📸 **Prova obrigatória:** imagem ou vídeo`
         )
         .setColor('#2b2d31');
 
@@ -34,12 +34,12 @@ module.exports = (client) => {
         .setCustomId('select_evento')
         .setPlaceholder('📌 Escolha o evento')
         .addOptions([
-          { label: '🐉 Leviathan', description: 'Vale 3 pontos', value: 'leviathan_3' },
-          { label: '🦈 Terroshark', description: 'Vale 1 ponto', value: 'terroshark_1' },
-          { label: '🌊 Sea Beast', description: 'Vale 1 ponto', value: 'seabeast_1' },
-          { label: '🌋 Ilha do Vulcão', description: 'Vale 2 pontos', value: 'vulcao_2' },
-          { label: '👻 Navio Fantasma', description: 'Vale 1 ponto', value: 'navio_1' },
-          { label: '⚔️ Raids', description: 'Vale 1 ponto', value: 'raids_1' }
+          { label: '🐉 Leviathan', description: '3 pontos', value: 'leviathan' },
+          { label: '🦈 Terroshark', description: '1 ponto', value: 'terroshark' },
+          { label: '🌊 Sea Beast', description: '1 ponto', value: 'seabeast' },
+          { label: '🌋 Ilha do Vulcão', description: '2 pontos', value: 'vulcao' },
+          { label: '👻 Navio Fantasma', description: '1 ponto', value: 'navio' },
+          { label: '⚔️ Raids', description: '1 ponto', value: 'raids' }
         ]);
 
       const row = new ActionRowBuilder().addComponents(menu);
@@ -51,19 +51,45 @@ module.exports = (client) => {
     }
   });
 
-  // ===== CRIAR TÓPICO =====
+  // ===== MENU =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
 
-    const partes = interaction.values[0].split('_');
-    const pontos = parseInt(partes[1]);
+    const mapaPontos = {
+      leviathan: 3,
+      terroshark: 1,
+      seabeast: 1,
+      vulcao: 2,
+      navio: 1,
+      raids: 1
+    };
 
+    const pontos = mapaPontos[interaction.values[0]];
+
+    // pega cargo staff
+    const cargoStaff = interaction.guild.roles.cache.find(
+      r => r.name === '⃤⃟⃝Moderador Staff'
+    );
+
+    // ===== CRIA THREAD PRIVADA =====
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
-      autoArchiveDuration: 60,
-      type: ChannelType.PublicThread
+      autoArchiveDuration: 1440,
+      type: ChannelType.PrivateThread,
+      invitable: false
     });
+
+    // adiciona user
+    await thread.members.add(interaction.user.id);
+
+    // adiciona staff
+    if (cargoStaff) {
+      await thread.permissionOverwrites.create(cargoStaff.id, {
+        ViewChannel: true,
+        SendMessages: true
+      });
+    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -77,16 +103,20 @@ module.exports = (client) => {
         .setStyle(ButtonStyle.Danger)
     );
 
+    // 🔥 ENVIA SÓ NA THREAD (NÃO NO CANAL)
     await thread.send({
-      content: `🎈 ${interaction.user} envie a prova do evento 📸`,
+      content: `📸 ${interaction.user}, envie sua prova aqui.`,
       components: [row]
     });
 
-    // 🔥 SEM REPLY = NÃO APARECE "DM FAKE"
-    await interaction.deferUpdate();
+    // 🔥 RESPOSTA INVISÍVEL (NÃO VAI PRO CANAL)
+    await interaction.reply({
+      content: `✅ Seu evento foi criado.`,
+      ephemeral: true
+    });
   });
 
-  // ===== APROVAR / RECUSAR =====
+  // ===== BOTÕES =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -95,34 +125,29 @@ module.exports = (client) => {
       !interaction.customId.startsWith('recusar')
     ) return;
 
-    const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
+    const cargoStaff = interaction.guild.roles.cache.find(
+      r => r.name === '⃤⃟⃝Moderador Staff'
+    );
 
-    const isStaff =
-      interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) ||
-      interaction.member.roles.cache.has(staffRole?.id);
-
-    if (!isStaff) {
+    if (!interaction.member.roles.cache.has(cargoStaff?.id)) {
       return interaction.reply({
-        content: '❌ Apenas staff pode usar isso.',
+        content: '❌ Apenas staff.',
         ephemeral: true
       });
     }
 
     const thread = interaction.channel;
 
-    // ❌ RECUSAR
+    // ===== RECUSAR =====
     if (interaction.customId.startsWith('recusar')) {
-      await interaction.update({
-        content: '❌ Evento recusado.',
-        components: []
-      });
+      await interaction.reply({ content: '❌ Evento recusado.', ephemeral: true });
 
       setTimeout(async () => {
         await thread.delete().catch(() => {});
       }, 2000);
     }
 
-    // ✅ APROVAR
+    // ===== APROVAR =====
     if (interaction.customId.startsWith('aprovar')) {
 
       const partes = interaction.customId.split('_');
@@ -140,19 +165,9 @@ module.exports = (client) => {
 
       fs.writeFileSync('./level.json', JSON.stringify(db, null, 2));
 
-      const rankingArray = Object.entries(db)
-        .map(([id, data]) => ({
-          nome: id,
-          pontos: data.mensagens
-        }))
-        .sort((a, b) => b.pontos - a.pontos)
-        .slice(0, 10);
-
-      fs.writeFileSync('./ranking.json', JSON.stringify(rankingArray, null, 2));
-
-      await interaction.update({
-        content: `✅ Evento aprovado! (+${pontos} pontos)`,
-        components: []
+      await interaction.reply({
+        content: `✅ Aprovado (+${pontos})`,
+        ephemeral: true
       });
 
       setTimeout(async () => {
