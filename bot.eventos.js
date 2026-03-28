@@ -1,123 +1,114 @@
-// ======================= INDEX.JS ======================= const { Client, GatewayIntentBits, Partials } = require('discord.js'); require('dotenv').config();
-
-const eventos = require('./bot.eventos');
-
-const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ], partials: [ Partials.Channel ] });
-
-eventos(client);
-
-client.once('ready', () => { console.log('Bot ligado como ' + client.user.tag); }); });
-
-client.login(process.env.TOKEN);
-
-// ======================= bot.eventos.js ======================= const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType, PermissionsBitField } = require('discord.js');
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  ChannelType
+} = require('discord.js');
 
 module.exports = (client) => {
 
-const STAFF_ROLE_NAME = "Moderador Staff";
+  const STAFF_ROLE_NAME = "Moderador Staff";
 
-client.on('messageCreate', async (message) => { if (message.content === '!painel') {
+  // PAINEL
+  client.on('messageCreate', async (message) => {
+    if (message.content === '!painel') {
 
-const menu = new StringSelectMenuBuilder()
-    .setCustomId('selecionar_evento')
-    .setPlaceholder('Escolha o evento')
-    .addOptions([
-      {
-        label: 'Sea Beast',
-        value: 'sea_beast'
-      },
-      {
-        label: 'Terror Shark',
-        value: 'terror_shark'
-      }
-    ]);
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('selecionar_evento')
+        .setPlaceholder('Escolha o evento')
+        .addOptions([
+          { label: 'Sea Beast', value: 'sea_beast' },
+          { label: 'Terror Shark', value: 'terror_shark' }
+        ]);
 
-  const row = new ActionRowBuilder().addComponents(menu);
+      const row = new ActionRowBuilder().addComponents(menu);
 
-  await message.channel.send({
-    content: "📊 **REGISTRO DE EVENTOS — FROSTVOW**\n\n1️⃣ Selecione o evento\n2️⃣ Envie a prova no tópico\n3️⃣ Aguarde staff",
-    components: [row]
-  });
-}
+      await message.channel.send({
+        content: `📊 REGISTRO DE EVENTOS — FROSTVOW
 
-});
-
-client.on('interactionCreate', async (interaction) => {
-
-if (interaction.isStringSelectMenu()) {
-
-  if (interaction.customId === 'selecionar_evento') {
-
-    const canal = interaction.channel;
-    const membro = interaction.member;
-
-    const thread = await canal.threads.create({
-      name: `evento-${membro.user.username}`,
-      type: ChannelType.PrivateThread,
-      invitable: false
-    });
-
-    const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
-
-    await thread.members.add(membro.id);
-
-    if (staffRole) {
-      staffRole.members.forEach(m => {
-        thread.members.add(m.id);
+1️⃣ Selecione o evento
+2️⃣ Envie a prova no tópico
+3️⃣ Aguarde staff`,
+        components: [row]
       });
     }
+  });
 
-    const botoes = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('aprovar')
-        .setLabel('Aprovar')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId('recusar')
-        .setLabel('Recusar')
-        .setStyle(ButtonStyle.Danger)
-    );
+  // INTERAÇÕES
+  client.on('interactionCreate', async (interaction) => {
 
-    await thread.send({
-      content: `📸 ${membro}, envie sua prova aqui.`,
-      components: [botoes]
-    });
+    // SELECT MENU
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'selecionar_evento') {
 
-    await interaction.reply({
-      content: `✅ Tópico criado: ${thread}`,
-      ephemeral: true
-    });
-  }
-}
+        const membro = interaction.member;
+        const canal = interaction.channel;
 
-if (interaction.isButton()) {
+        const thread = await canal.threads.create({
+          name: `evento-${membro.user.username}`,
+          type: ChannelType.PrivateThread,
+          invitable: false
+        });
 
-  const membro = interaction.member;
-  const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
+        const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-  if (!staffRole || !membro.roles.cache.has(staffRole.id)) {
-    return interaction.reply({ content: '❌ Apenas staff pode usar.', ephemeral: true });
-  }
+        // adiciona quem criou
+        await thread.members.add(membro.id);
 
-  const thread = interaction.channel;
+        // adiciona staff
+        if (staffRole) {
+          for (const m of staffRole.members.values()) {
+            await thread.members.add(m.id).catch(() => {});
+          }
+        }
 
-  if (interaction.customId === 'aprovar') {
+        const botoes = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('aprovar')
+            .setLabel('Aprovar')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('recusar')
+            .setLabel('Recusar')
+            .setStyle(ButtonStyle.Danger)
+        );
 
-    await interaction.reply('✅ Evento aprovado!');
+        await thread.send({
+          content: `📸 ${membro}, envie sua prova aqui.`,
+          components: [botoes]
+        });
 
-    setTimeout(async () => {
-      await thread.delete().catch(() => {});
-    }, 2000);
-  }
+        await interaction.reply({
+          content: `Tópico criado: ${thread}`,
+          ephemeral: true
+        });
+      }
+    }
 
-  if (interaction.customId === 'recusar') {
+    // BOTÕES
+    if (interaction.isButton()) {
 
-    await interaction.reply('❌ Evento recusado!');
+      const membro = interaction.member;
+      const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-    setTimeout(async () => {
-      await thread.delete().catch(() => {});
-    }, 2000);
-  }
-}
+      if (!staffRole || !membro.roles.cache.has(staffRole.id)) {
+        return interaction.reply({ content: 'Apenas staff pode usar.', ephemeral: true });
+      }
 
-}); };
+      const thread = interaction.channel;
+
+      if (interaction.customId === 'aprovar') {
+        await interaction.reply('Evento aprovado!');
+        setTimeout(() => thread.delete().catch(() => {}), 2000);
+      }
+
+      if (interaction.customId === 'recusar') {
+        await interaction.reply('Evento recusado!');
+        setTimeout(() => thread.delete().catch(() => {}), 2000);
+      }
+    }
+
+  });
+
+};
