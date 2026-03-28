@@ -9,6 +9,8 @@ const {
 
 const DB_PATH = path.join(__dirname, 'banco-eventos.json');
 
+console.log("✅ rank-eventos.js carregado"); // 🔥 LOG
+
 module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
@@ -30,7 +32,7 @@ module.exports = (client) => {
 
     const ranking = Object.entries(db)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 50); // 🔥 LIMITA ATÉ TOP 50
+      .slice(0, 50);
 
     if (ranking.length === 0) {
       return message.reply('❌ Ninguém tem pontos ainda.');
