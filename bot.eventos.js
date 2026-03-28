@@ -4,29 +4,26 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-  EmbedBuilder
+  EmbedBuilder,
+  PermissionsBitField
 } = require('discord.js');
 
 const fs = require('fs');
 
 module.exports = (client) => {
 
-  // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     if (message.content === '!painel') {
 
       const embed = new EmbedBuilder()
-        .setTitle('📊 REGISTRO DE EVENTOS — VOID LEGIONS')
+        .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')
         .setDescription(
 `**Como funciona:**
 1️⃣ Selecione o evento abaixo
-2️⃣ Envie a prova no chat criado
+2️⃣ Envie a prova no tópico criado
 3️⃣ Aguarde aprovação da staff
-
-💎 **Fragments** — somente ranking  
-🏆 **Conquistas** — pontos definidos pela staff  
 
 📸 **Prova obrigatória**: imagem ou vídeo`
         )
@@ -53,7 +50,6 @@ module.exports = (client) => {
     }
   });
 
-  // ===== SELECIONAR EVENTO =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId !== 'select_evento') return;
@@ -64,10 +60,20 @@ module.exports = (client) => {
     const thread = await interaction.channel.threads.create({
       name: `evento-${interaction.user.username}`,
       autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread
+      type: ChannelType.PrivateThread,
+      invitable: false
     });
 
     await thread.members.add(interaction.user.id);
+
+    const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
+
+    if (staffRole) {
+      const staffMembers = interaction.guild.members.cache.filter(m => m.roles.cache.has(staffRole.id));
+      for (const member of staffMembers.values()) {
+        await thread.members.add(member.id).catch(() => {});
+      }
+    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -92,7 +98,6 @@ module.exports = (client) => {
     });
   });
 
-  // ===== APROVAR / RECUSAR =====
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -101,11 +106,13 @@ module.exports = (client) => {
       !interaction.customId.startsWith('recusar')
     ) return;
 
-    const cargoStaff = interaction.guild.roles.cache.find(
-      r => r.name === '⃤⃟⃝Moderador Staff'
-    );
+    const staffRole = interaction.guild.roles.cache.find(r => r.name === '⃤⃟⃝Moderador Staff');
 
-    if (!interaction.member.roles.cache.has(cargoStaff?.id)) {
+    const isStaff =
+      interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+      interaction.member.roles.cache.has(staffRole?.id);
+
+    if (!isStaff) {
       return interaction.reply({
         content: '❌ Apenas staff pode usar isso.',
         ephemeral: true
@@ -114,13 +121,11 @@ module.exports = (client) => {
 
     const thread = interaction.channel;
 
-    // ===== RECUSAR =====
     if (interaction.customId.startsWith('recusar')) {
-      await interaction.reply('❌ Evento recusado.');
-      setTimeout(() => thread.delete(), 3000);
+      await interaction.reply({ content: '❌ Evento recusado.', ephemeral: false });
+      setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
 
-    // ===== APROVAR =====
     if (interaction.customId.startsWith('aprovar')) {
 
       const partes = interaction.customId.split('_');
@@ -148,9 +153,9 @@ module.exports = (client) => {
 
       fs.writeFileSync('./ranking.json', JSON.stringify(rankingArray, null, 2));
 
-      await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
+      await interaction.reply({ content: `✅ Evento aprovado! (+${pontos} pontos)`, ephemeral: false });
 
-      setTimeout(() => thread.delete(), 3000);
+      setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
   });
 
