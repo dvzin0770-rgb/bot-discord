@@ -5,7 +5,7 @@ const ticket = require('./ticket');
 const recrutamento = require('./recrutamento');
 const comandos = require('./comandos');
 const stock = require('./stock');
-const eventos = require('./bot.eventos'); // 👈 CORRIGIDO
+const eventos = require('./bot.eventos');
 const pings = require('./pings');
 const quiz = require('./quiz');
 const level = require('./level');
@@ -25,12 +25,15 @@ const client = new Client({
   ]
 });
 
+// ===== DEBUG TOKEN 🔥 =====
+console.log("TOKEN LIDO:", process.env.TOKEN);
+
 // ===== ATIVAR SISTEMAS =====
 ticket(client);
 recrutamento(client);
 comandos(client);
 stock(client);
-eventos(client); // 👈 VAI USAR O bot.eventos.js
+eventos(client);
 pings(client);
 quiz(client);
 level(client);
