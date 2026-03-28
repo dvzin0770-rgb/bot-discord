@@ -21,7 +21,6 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    // 🔥 FALTAVA ISSO AQUI
     if (message.content.toLowerCase() !== '!painel') return;
 
     const embed = new EmbedBuilder()
@@ -37,12 +36,12 @@ module.exports = (client) => {
       .setCustomId('evento_menu')
       .setPlaceholder('Escolha o evento')
       .addOptions([
-        { label: '🐉 Leviathan', value: '3' },
-        { label: '🦈 Terror Shark', value: '1' },
-        { label: '🌊 Sea Beast', value: '1' },
-        { label: '🌋 Ilha do Vulcão', value: '2' },
-        { label: '👻 Navio Fantasma', value: '1' },
-        { label: '⚔️ Raids', value: '1' }
+        { label: '🐉 Leviathan', value: 'leviathan_3' },
+        { label: '🦈 Terror Shark', value: 'terror_1' },
+        { label: '🌊 Sea Beast', value: 'seabeast_1' },
+        { label: '🌋 Ilha do Vulcão', value: 'vulcao_2' },
+        { label: '👻 Navio Fantasma', value: 'navio_1' },
+        { label: '⚔️ Raids', value: 'raids_1' }
       ]);
 
     const row = new ActionRowBuilder().addComponents(menu);
@@ -58,10 +57,13 @@ module.exports = (client) => {
   // ===== INTERAÇÕES =====
   client.on('interactionCreate', async (interaction) => {
 
+    // ===== MENU =====
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId !== 'evento_menu') return;
 
-      const pontos = parseInt(interaction.values[0]);
+      const partes = interaction.values[0].split('_');
+      const pontos = parseInt(partes[1]);
+
       const membro = interaction.member;
       const canal = interaction.channel;
 
@@ -109,6 +111,7 @@ module.exports = (client) => {
       });
     }
 
+    // ===== BOTÕES =====
     if (interaction.isButton()) {
 
       if (
@@ -127,11 +130,13 @@ module.exports = (client) => {
 
       const thread = interaction.channel;
 
+      // RECUSAR
       if (interaction.customId.startsWith('evento_recusar')) {
         await interaction.reply('❌ Evento recusado.');
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
 
+      // APROVAR
       if (interaction.customId.startsWith('evento_aprovar')) {
         const partes = interaction.customId.split('_');
         const pontos = parseInt(partes[3]);
