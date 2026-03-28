@@ -14,8 +14,9 @@ module.exports = (client) => {
   // ===== PAINEL =====
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+    if (!message.guild) return;
 
-    if (message.content === '!painel') {
+    if (message.content.toLowerCase() === '!painel') {
 
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
@@ -69,22 +70,18 @@ module.exports = (client) => {
         autoArchiveDuration: 1440
       });
 
-      // 🔥 GARANTE VISIBILIDADE
       await interaction.guild.members.fetch();
 
       const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
 
-      // adiciona criador
       await thread.members.add(membro.id);
 
-      // adiciona staff
       if (staffRole) {
         for (const m of staffRole.members.values()) {
           await thread.members.add(m.id).catch(() => {});
         }
       }
 
-      // 🔥 GARANTE QUE PODEM FALAR
       await thread.setLocked(false);
       await thread.setArchived(false);
 
@@ -129,20 +126,16 @@ module.exports = (client) => {
 
       const thread = interaction.channel;
 
-      // ===== RECUSAR =====
       if (interaction.customId.startsWith('recusar')) {
         await interaction.reply('❌ Evento recusado.');
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
 
-      // ===== APROVAR =====
       if (interaction.customId.startsWith('aprovar')) {
-
         const partes = interaction.customId.split('_');
         const pontos = parseInt(partes[2]);
 
         await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)`);
-
         setTimeout(() => thread.delete().catch(() => {}), 2000);
       }
     }
