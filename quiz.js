@@ -76,16 +76,18 @@ module.exports = (client) => {
 
     collector.on('collect', async (interaction) => {
 
-      if (respondido) return interaction.reply({ content: '❌ Já responderam.', ephemeral: true });
+      // 🔥 CORREÇÃO PRINCIPAL
+      await interaction.deferReply({ ephemeral: true });
+
+      if (respondido) {
+        return interaction.editReply('❌ Já responderam.');
+      }
 
       const member = interaction.member;
       const role = interaction.guild.roles.cache.find(r => r.name === CARGO_PERMITIDO);
 
       if (!role || !member.roles.cache.has(role.id)) {
-        return interaction.reply({
-          content: '❌ Só membros da tripulação podem participar.',
-          ephemeral: true
-        });
+        return interaction.editReply('❌ Só membros da tripulação podem participar.');
       }
 
       respondido = true;
@@ -98,20 +100,19 @@ module.exports = (client) => {
       const id = interaction.user.id;
 
       if (respostaUsuario === respostaCorreta) {
-        const pontos = getPontos(pergunta.dificuldade);
         db[id] = (db[id] || 0) + pontos;
         saveDB(db);
 
-        await interaction.reply(`✅ Você acertou! Ganhou ${pontos} ponto(s) ⭐`);
+        await interaction.editReply(`✅ Você acertou! Ganhou ${pontos} ponto(s) ⭐`);
       } else {
-        await interaction.reply(`❌ Você errou! Tente na próxima 😭`);
+        await interaction.editReply(`❌ Você errou! Tente na próxima 😭`);
       }
 
       await msg.edit({ components: [] });
     });
   }
 
-  // 🔥 AGORA 30 MINUTOS
+  // 🔥 30 MINUTOS
   function agendar(canal) {
     const agora = new Date();
     const minutos = agora.getMinutes();
