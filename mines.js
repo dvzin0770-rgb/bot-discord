@@ -8,11 +8,10 @@ const {
 
 const DB_PATH = './economia.json';
 
-if (!fs.existsSync(DB_PATH)) {
-  fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
-}
-
 function getDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+  }
   return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
@@ -52,20 +51,16 @@ module.exports = (client) => {
       return message.reply('❌ Use: !mines <minas> <aposta>');
     }
 
-    if (minas < 1 || minas > 5) {
-      return message.reply('❌ Minas entre 1 e 5.');
-    }
-
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = { dinheiro: 10000, lastDaily: 0 };
+    if (!db[id]) db[id] = 10000;
 
-    if (db[id].dinheiro < aposta) {
+    if (db[id] < aposta) {
       return message.reply('❌ Você não tem saldo suficiente.');
     }
 
-    db[id].dinheiro -= aposta;
+    db[id] -= aposta;
     saveDB(db);
 
     const grid = gerarGrid(minas);
@@ -81,7 +76,7 @@ module.exports = (client) => {
 
     jogos.set(id, jogo);
 
-    const gerarBotoes = (revelarTudo = false) => {
+    const gerarBotoes = () => {
       const rows = [];
 
       for (let i = 0; i < 4; i++) {
@@ -90,21 +85,12 @@ module.exports = (client) => {
         for (let j = 0; j < 4; j++) {
           const index = i * 4 + j;
 
-          const revelado = jogo.revelados[index] || revelarTudo;
-          const valor = jogo.grid[index];
-
           row.addComponents(
             new ButtonBuilder()
               .setCustomId(`mine_${index}`)
-              .setLabel(revelado ? valor : '⬜')
-              .setStyle(
-                !revelado
-                  ? ButtonStyle.Secondary
-                  : valor === '💣'
-                  ? ButtonStyle.Danger
-                  : ButtonStyle.Success
-              )
-              .setDisabled(revelado)
+              .setLabel(jogo.revelados[index] ? jogo.grid[index] : '⬜')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(jogo.revelados[index])
           );
         }
 
@@ -123,24 +109,13 @@ module.exports = (client) => {
       return rows;
     };
 
-    const saldoAtual = db[id].dinheiro;
-
-    const embed = new EmbedBuilder()
-      .setColor('#5865F2')
-      .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
-      .setTitle('💣・Mines — Frostvow')
-      .setDescription('Clique nos blocos e evite as bombas... boa sorte 👀')
-      .addFields(
-        { name: '💰 Aposta', value: `**${aposta} moedas**`, inline: true },
-        { name: '💣 Minas', value: `**${minas}**`, inline: true },
-        { name: '📈 Multiplicador', value: `**1.00x**`, inline: true },
-        { name: '🏦 Seu saldo', value: `**${saldoAtual} moedas**` }
-      )
-      .setFooter({ text: 'Frostvow • Sistema de Apostas' })
-      .setTimestamp();
-
     const msg = await message.channel.send({
-      embeds: [embed],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('💣 Mines')
+          .setDescription(`💰 Aposta: ${aposta}\n💣 Minas: ${minas}`)
+          .setColor('#2b2d31')
+      ],
       components: gerarBotoes()
     });
 
@@ -149,10 +124,7 @@ module.exports = (client) => {
     collector.on('collect', async (interaction) => {
 
       if (interaction.user.id !== id) {
-        return interaction.reply({
-          content: '❌ Esse jogo não é seu.',
-          ephemeral: true
-        });
+        return interaction.reply({ content: '❌ Não é seu jogo.', ephemeral: true });
       }
 
       if (!jogo.ativo) return;
@@ -161,7 +133,7 @@ module.exports = (client) => {
         const ganho = Math.floor(jogo.aposta * jogo.multiplicador);
 
         const db = getDB();
-        db[id].dinheiro += ganho;
+        db[id] += ganho;
         saveDB(db);
 
         jogo.ativo = false;
@@ -179,21 +151,9 @@ module.exports = (client) => {
         jogo.ativo = false;
 
         return interaction.update({
-          content: '💥 **BOOM! Você explodiu!**',
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('💣・Mines — Game Over')
-              .setDescription('Você acertou uma bomba... melhor sorte na próxima 😭')
-              .addFields({
-                name: '💸 Perda',
-                value: `**-${aposta} moedas**`,
-                inline: true
-              })
-              .setFooter({ text: 'Frostvow Casino' })
-              .setTimestamp()
-          ],
-          components: gerarBotoes(true)
+          content: '💣 Você explodiu!',
+          embeds: [],
+          components: []
         });
       }
 
@@ -203,17 +163,8 @@ module.exports = (client) => {
       await interaction.update({
         embeds: [
           new EmbedBuilder()
-            .setColor('#5865F2')
-            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-            .setTitle('💣・Mines — Frostvow')
-            .setDescription('Você está avançando... não explode agora 😈')
-            .addFields(
-              { name: '💰 Aposta', value: `**${aposta} moedas**`, inline: true },
-              { name: '📈 Multiplicador', value: `**${jogo.multiplicador.toFixed(2)}x**`, inline: true },
-              { name: '💎 Ganho atual', value: `**${Math.floor(aposta * jogo.multiplicador)} moedas**`, inline: true }
-            )
-            .setFooter({ text: 'Clique com cuidado...' })
-            .setTimestamp()
+            .setTitle('💣 Mines')
+            .setDescription(`📈 Multiplicador: ${jogo.multiplicador.toFixed(2)}x`)
         ],
         components: gerarBotoes()
       });
