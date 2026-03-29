@@ -4,7 +4,7 @@ module.exports = (client) => {
 
   client.on('guildMemberAdd', async (member) => {
 
-    const canal = member.guild.channels.cache.get('1483173824835883073'); // ✅ CANAL CORRETO
+    const canal = member.guild.channels.cache.get('1483173824835883073');
 
     if (!canal) return;
 
@@ -30,7 +30,10 @@ Leia <#1485256438174584893> para evitar problemas!`
       .setFooter({ text: 'FROSTVOW ❄️ • Todos os direitos reservados' })
       .setTimestamp();
 
-    canal.send({ embeds: [embed] });
+    canal.send({
+      content: `🎉 | ${member}`, // 🔥 MARCA O USUÁRIO
+      embeds: [embed]
+    });
 
   });
 
