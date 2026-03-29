@@ -1,11 +1,12 @@
 const fs = require('fs');
 
 const DB_PATH = './economia.json';
-
-// 🔥 SEU ID (ÚNICO QUE PODE USAR)
 const DONO_ID = '1374388082908069899';
 
 function getDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+  }
   return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
@@ -17,13 +18,11 @@ module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (!message.guild) return;
 
     if (!message.content.startsWith('!addmoney')) return;
 
-    // 🔥 BLOQUEIO: SÓ VOCÊ
     if (message.author.id !== DONO_ID) {
-      return message.reply('❌ Você não tem permissão para usar esse comando.');
+      return message.reply('❌ Você não pode usar isso.');
     }
 
     const args = message.content.split(' ');
@@ -31,20 +30,17 @@ module.exports = (client) => {
     const valor = parseInt(args[2]);
 
     if (!user || !valor) {
-      return message.reply('❌ Use: !addmoney @user <valor>');
+      return message.reply('❌ Use: !addmoney @user valor');
     }
 
     const db = getDB();
 
-    if (!db[user.id]) {
-      db[user.id] = { dinheiro: 10000, lastDaily: 0 };
-    }
+    if (!db[user.id]) db[user.id] = 10000;
 
-    db[user.id].dinheiro += valor;
-
+    db[user.id] += valor;
     saveDB(db);
 
-    message.reply(`💰 ${user.username} recebeu **${valor} moedas**!`);
+    message.reply(`💰 ${user.username} recebeu ${valor} moedas.`);
   });
 
 };
