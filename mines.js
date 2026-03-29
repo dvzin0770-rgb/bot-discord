@@ -42,7 +42,6 @@ module.exports = (client) => {
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // 🔥 ALTERADO AQUI
     if (!message.content.startsWith('!mines')) return;
 
     const args = message.content.split(' ');
@@ -60,13 +59,14 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = 10000;
+    // 🔥 NOVO FORMATO
+    if (!db[id]) db[id] = { dinheiro: 10000, lastDaily: 0 };
 
-    if (db[id] < aposta) {
+    if (db[id].dinheiro < aposta) {
       return message.reply('❌ Você não tem saldo suficiente.');
     }
 
-    db[id] -= aposta;
+    db[id].dinheiro -= aposta;
     saveDB(db);
 
     const grid = gerarGrid(minas);
@@ -142,7 +142,7 @@ module.exports = (client) => {
         const ganho = Math.floor(jogo.aposta * jogo.multiplicador);
 
         const db = getDB();
-        db[id] += ganho;
+        db[id].dinheiro += ganho;
         saveDB(db);
 
         jogo.ativo = false;
