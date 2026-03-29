@@ -1,9 +1,11 @@
 const fs = require('fs');
-const { EmbedBuilder } = require('discord.js');
 
 const DB_PATH = './economia.json';
 
 function getDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+  }
   return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
@@ -15,90 +17,41 @@ module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (!message.guild) return;
 
-    if (!message.content.startsWith('!coin')) return;
+    if (!message.content.startsWith('!coinflip')) return;
 
     const args = message.content.split(' ');
     const aposta = parseInt(args[1]);
-    const escolha = args[2]?.toLowerCase();
+    const escolha = args[2];
 
-    if (!aposta || !['cara', 'coroa'].includes(escolha)) {
-      return message.reply('❌ Use: !coin <valor> <cara/coroa>');
+    if (!aposta || !escolha) {
+      return message.reply('❌ Use: !coinflip <valor> <cara/coroa>');
     }
 
     const db = getDB();
     const id = message.author.id;
 
-    if (db[id] === undefined) db[id] = 0;
+    if (!db[id]) db[id] = 10000;
 
     if (db[id] < aposta) {
       return message.reply('❌ Você não tem saldo suficiente.');
     }
 
-    db[id] -= aposta;
-    saveDB(db);
-
-    // 🪙 EMBED INICIAL
-    const embed = new EmbedBuilder()
-      .setColor('#3498db')
-      .setTitle('🪙 Cara ou Coroa — Frostvow')
-      .setDescription(
-        `💰 Aposta: **${aposta}**\n` +
-        `🎯 Escolha: **${escolha}**\n\n` +
-        `🪙 Jogando a moeda...`
-      );
-
-    const msg = await message.channel.send({ embeds: [embed] });
-
-    // 🎲 ANIMAÇÃO
-    const anim = ['🪙', '💫', '🪙', '💫', '🪙'];
-    for (let i = 0; i < anim.length; i++) {
-      await new Promise(r => setTimeout(r, 400));
-
-      await msg.edit({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#3498db')
-            .setTitle('🪙 Cara ou Coroa — Frostvow')
-            .setDescription(`\n\n${anim[i]} Girando... ${anim[i]}`)
-        ]
-      });
-    }
-
-    // 🎯 RESULTADO
     const resultado = Math.random() < 0.5 ? 'cara' : 'coroa';
 
-    let ganhou = resultado === escolha;
-    let ganho = ganhou ? aposta * 2 : 0;
+    if (escolha !== 'cara' && escolha !== 'coroa') {
+      return message.reply('❌ Escolha cara ou coroa.');
+    }
 
-    db[id] += ganho;
-    saveDB(db);
-
-    let cor = ganhou ? '#2ecc71' : '#e74c3c';
-    let titulo = ganhou ? '🎉 Você ganhou!' : '💀 Você perdeu!';
-    let texto = ganhou
-      ? `Você ganhou **${ganho} moedas!**`
-      : `Você perdeu **${aposta} moedas...**`;
-
-    const finalEmbed = new EmbedBuilder()
-      .setColor(cor)
-      .setTitle('🪙 Cara ou Coroa — Frostvow')
-      .setDescription(
-        `🪙 Resultado: **${resultado.toUpperCase()}**\n\n` +
-        `🎯 Sua escolha: **${escolha.toUpperCase()}**\n` +
-        `💰 Aposta: **${aposta}**\n\n` +
-        `${titulo}\n${texto}`
-      )
-      .addFields({
-        name: '🏦 Saldo atual',
-        value: `**${db[id]} moedas**`
-      })
-      .setFooter({ text: 'Frostvow Cassino' })
-      .setTimestamp();
-
-    await msg.edit({ embeds: [finalEmbed] });
-
+    if (resultado === escolha) {
+      db[id] += aposta;
+      saveDB(db);
+      return message.reply(`🪙 Deu **${resultado}**! Você ganhou ${aposta} moedas!`);
+    } else {
+      db[id] -= aposta;
+      saveDB(db);
+      return message.reply(`🪙 Deu **${resultado}**! Você perdeu ${aposta} moedas.`);
+    }
   });
 
 };
