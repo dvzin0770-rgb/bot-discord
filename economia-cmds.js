@@ -1,12 +1,12 @@
 const fs = require('fs');
+const { EmbedBuilder } = require('discord.js');
 
 const DB_PATH = './economia.json';
 
-if (!fs.existsSync(DB_PATH)) {
-  fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
-}
-
 function getDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+  }
   return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
@@ -18,38 +18,74 @@ module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (!message.guild) return;
+
+    const args = message.content.split(' ');
+    const cmd = args[0].toLowerCase();
 
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = { dinheiro: 10000, lastDaily: 0 };
+    if (!db[id]) db[id] = 10000;
 
     // 💰 SALDO
-    if (message.content === '!saldo') {
-      return message.reply(`💰 Seu saldo: **${db[id].dinheiro} moedas**`);
+    if (cmd === '!saldo') {
+      return message.reply(`💰 Seu saldo: ${db[id]} moedas`);
     }
 
     // 🎁 DAILY
-    if (message.content === '!daily') {
-      const agora = Date.now();
-      const cooldown = 24 * 60 * 60 * 1000;
+    if (cmd === '!daily') {
+      if (!db.daily) db.daily = {};
 
-      if (agora - db[id].lastDaily < cooldown) {
-        const tempo = Math.ceil((cooldown - (agora - db[id].lastDaily)) / 1000 / 60);
-        return message.reply(`⏳ Você já resgatou. Volte em ${tempo} minutos.`);
+      const agora = Date.now();
+      const ultimo = db.daily[id] || 0;
+
+      if (agora - ultimo < 86400000) {
+        return message.reply('⏳ Você já coletou hoje!');
       }
 
-      const recompensa = 5000;
-
-      db[id].dinheiro += recompensa;
-      db[id].lastDaily = agora;
-
+      db[id] += 5000;
+      db.daily[id] = agora;
       saveDB(db);
 
-      return message.reply(`🎁 Você recebeu **${recompensa} moedas!**`);
+      return message.reply('🎁 Você ganhou 5000 moedas!');
+    }
+
+    // 🏆 TOP RICOS
+    if (cmd === '!topricos') {
+      const ranking = Object.entries(db)
+        .filter(([key]) => !isNaN(key))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      let texto = '';
+
+      for (let i = 0; i < ranking.length; i++) {
+        const user = await client.users.fetch(ranking[i][0]).catch(() => null);
+        const nome = user ? user.username : 'Desconhecido';
+
+        const medalha =
+          i === 0 ? '🥇' :
+          i === 1 ? '🥈' :
+          i === 2 ? '🥉' : `#${i + 1}`;
+
+        texto += `${medalha} **${nome}** — 💰 ${ranking[i][1]}\n`;
+      }
+
+      const pos = ranking.findIndex(u => u[0] === id);
+
+      return message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#FFD700')
+            .setTitle('💰 RANKING DE RICOS — FROSTVOW')
+            .setDescription(texto)
+            .addFields({
+              name: '📍 Sua posição',
+              value: pos !== -1 ? `#${pos + 1} com ${db[id]} moedas` : 'Fora do top'
+            })
+        ]
+      });
     }
 
   });
-
 };
