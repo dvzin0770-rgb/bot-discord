@@ -8,12 +8,18 @@ const {
 
 const DB_PATH = './economia.json';
 
-if (!fs.existsSync(DB_PATH)) {
-  fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
-}
-
 function getDB() {
-  return JSON.parse(fs.readFileSync(DB_PATH));
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({
+      users: {},
+      daily: {}
+    }, null, 2));
+  }
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  if (!data.users) data.users = {};
+
+  return data;
 }
 
 function saveDB(data) {
@@ -59,13 +65,17 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = 10000;
+    // 🔥 cria usuário sem resetar
+    if (db.users[id] === undefined) {
+      db.users[id] = 10000;
+      saveDB(db);
+    }
 
-    if (db[id] < aposta) {
+    if (db.users[id] < aposta) {
       return message.reply('❌ Você não tem saldo suficiente.');
     }
 
-    db[id] -= aposta;
+    db.users[id] -= aposta;
     saveDB(db);
 
     const grid = gerarGrid(minas);
@@ -125,7 +135,7 @@ module.exports = (client) => {
           `💎 **Possível ganho:** ${Math.floor(jogo.aposta * jogo.multiplicador)}`
         )
         .setColor('#0f172a')
-        .setFooter({ text: 'Clique nos blocos com cuidado...' });
+        .setFooter({ text: 'Clique com cuidado...' });
     };
 
     const msg = await message.channel.send({
@@ -152,7 +162,7 @@ module.exports = (client) => {
         const ganho = Math.floor(jogo.aposta * jogo.multiplicador);
 
         const db = getDB();
-        db[id] += ganho;
+        db.users[id] += ganho;
         saveDB(db);
 
         jogo.ativo = false;
@@ -168,7 +178,6 @@ module.exports = (client) => {
 
       if (jogo.grid[index] === '💣') {
         jogo.ativo = false;
-
         jogo.revelados = jogo.grid.map(() => true);
 
         return msg.edit({
