@@ -5,9 +5,16 @@ const DONO_ID = '1374388082908069899';
 
 function getDB() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({
+      users: {},
+      daily: {}
+    }, null, 2));
   }
-  return JSON.parse(fs.readFileSync(DB_PATH));
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  if (!data.users) data.users = {};
+
+  return data;
 }
 
 function saveDB(data) {
@@ -22,7 +29,7 @@ module.exports = (client) => {
     if (!message.content.startsWith('!addmoney')) return;
 
     if (message.author.id !== DONO_ID) {
-      return message.reply('❌ Você não pode usar isso.');
+      return message.reply('❌ Você não pode usar esse comando.');
     }
 
     const args = message.content.split(' ');
@@ -30,14 +37,16 @@ module.exports = (client) => {
     const valor = parseInt(args[2]);
 
     if (!user || !valor) {
-      return message.reply('❌ Use: !addmoney @user valor');
+      return message.reply('❌ Use: !addmoney @user <valor>');
     }
 
     const db = getDB();
 
-    if (!db[user.id]) db[user.id] = 10000;
+    if (db.users[user.id] === undefined) {
+      db.users[user.id] = 0;
+    }
 
-    db[user.id] += valor;
+    db.users[user.id] += valor;
     saveDB(db);
 
     message.reply(`💰 ${user.username} recebeu ${valor} moedas.`);
