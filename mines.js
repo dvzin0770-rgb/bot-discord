@@ -8,10 +8,11 @@ const {
 
 const DB_PATH = './economia.json';
 
+if (!fs.existsSync(DB_PATH)) {
+  fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+}
+
 function getDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
-  }
   return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
@@ -51,6 +52,10 @@ module.exports = (client) => {
       return message.reply('❌ Use: !mines <minas> <aposta>');
     }
 
+    if (minas < 1 || minas > 5) {
+      return message.reply('❌ Minas entre 1 e 5.');
+    }
+
     const db = getDB();
     const id = message.author.id;
 
@@ -88,9 +93,9 @@ module.exports = (client) => {
           row.addComponents(
             new ButtonBuilder()
               .setCustomId(`mine_${index}`)
-              .setLabel(jogo.revelados[index] ? jogo.grid[index] : '⬜')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(jogo.revelados[index])
+              .setLabel(jogo.revelados[index] ? jogo.grid[index] : '⬛')
+              .setStyle(jogo.revelados[index] ? ButtonStyle.Success : ButtonStyle.Secondary)
+              .setDisabled(jogo.revelados[index] || !jogo.ativo)
           );
         }
 
@@ -102,6 +107,7 @@ module.exports = (client) => {
           .setCustomId('sacar')
           .setLabel('💰 Sacar')
           .setStyle(ButtonStyle.Success)
+          .setDisabled(!jogo.ativo)
       );
 
       rows.push(controle);
@@ -109,13 +115,21 @@ module.exports = (client) => {
       return rows;
     };
 
+    const gerarEmbed = () => {
+      return new EmbedBuilder()
+        .setTitle('💣 MINES — FROSTVOW')
+        .setDescription(
+          `💰 **Aposta:** ${jogo.aposta}\n` +
+          `💣 **Minas:** ${jogo.minas}\n` +
+          `📈 **Multiplicador:** x${jogo.multiplicador.toFixed(2)}\n` +
+          `💎 **Possível ganho:** ${Math.floor(jogo.aposta * jogo.multiplicador)}`
+        )
+        .setColor('#0f172a')
+        .setFooter({ text: 'Clique nos blocos com cuidado...' });
+    };
+
     const msg = await message.channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('💣 Mines')
-          .setDescription(`💰 Aposta: ${aposta}\n💣 Minas: ${minas}`)
-          .setColor('#2b2d31')
-      ],
+      embeds: [gerarEmbed()],
       components: gerarBotoes()
     });
 
@@ -124,8 +138,13 @@ module.exports = (client) => {
     collector.on('collect', async (interaction) => {
 
       if (interaction.user.id !== id) {
-        return interaction.reply({ content: '❌ Não é seu jogo.', ephemeral: true });
+        return interaction.reply({
+          content: '❌ Esse jogo não é seu.',
+          ephemeral: true
+        });
       }
+
+      await interaction.deferUpdate();
 
       if (!jogo.ativo) return;
 
@@ -138,8 +157,8 @@ module.exports = (client) => {
 
         jogo.ativo = false;
 
-        return interaction.update({
-          content: `💰 Você sacou ${ganho}!`,
+        return msg.edit({
+          content: `💰 Você sacou ${ganho} moedas!`,
           embeds: [],
           components: []
         });
@@ -150,24 +169,24 @@ module.exports = (client) => {
       if (jogo.grid[index] === '💣') {
         jogo.ativo = false;
 
-        return interaction.update({
-          content: '💣 Você explodiu!',
+        jogo.revelados = jogo.grid.map(() => true);
+
+        return msg.edit({
+          content: '💣 BOOM! Você perdeu tudo!',
           embeds: [],
-          components: []
+          components: gerarBotoes()
         });
       }
 
       jogo.revelados[index] = true;
       jogo.multiplicador += 0.5;
 
-      await interaction.update({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle('💣 Mines')
-            .setDescription(`📈 Multiplicador: ${jogo.multiplicador.toFixed(2)}x`)
-        ],
+      await msg.edit({
+        embeds: [gerarEmbed()],
         components: gerarBotoes()
       });
     });
+
   });
+
 };
