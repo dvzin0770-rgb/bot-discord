@@ -72,8 +72,11 @@ module.exports = (client) => {
     }
 
     if (db.users[id] < aposta) {
-      return message.reply('❌ Você não tem saldo suficiente.');
-    }
+  return message.reply(
+    `💸 Seu saldo é de **${db.users[id]} moedas**.\n` +
+    `Como você vai apostar **${aposta}** se não tem isso? 🤨`
+  );
+}
 
     db.users[id] -= aposta;
     saveDB(db);
