@@ -8,7 +8,6 @@ module.exports = (client) => {
   const PERGUNTAS_PATH = './perguntas.json';
   const DB_PATH = './quiz.json';
 
-  // 🔥 SUA IMAGEM (já hospedada)
   const IMAGEM_QUIZ = 'https://files.catbox.moe/7r2m0q.png';
 
   if (!fs.existsSync(DB_PATH)) {
@@ -112,17 +111,18 @@ module.exports = (client) => {
     });
   }
 
+  // 🔥 AGORA 30 MINUTOS
   function agendar(canal) {
     const agora = new Date();
     const minutos = agora.getMinutes();
     const segundos = agora.getSeconds();
 
-    const proximo = 15 - (minutos % 15);
+    const proximo = 30 - (minutos % 30);
     const delay = (proximo * 60 - segundos) * 1000;
 
     setTimeout(() => {
       enviarPergunta(canal);
-      setInterval(() => enviarPergunta(canal), 15 * 60 * 1000);
+      setInterval(() => enviarPergunta(canal), 30 * 60 * 1000);
     }, delay);
   }
 
@@ -133,7 +133,7 @@ module.exports = (client) => {
     const canal = guild.channels.cache.find(c => c.name === CANAL_QUIZ);
     if (!canal) return console.log('Canal do quiz não encontrado');
 
-    console.log('🧠 Quiz FULL personalizado ativado');
+    console.log('🧠 Quiz FULL personalizado ativado (30min)');
     agendar(canal);
   });
 
