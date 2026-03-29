@@ -4,9 +4,16 @@ const DB_PATH = './economia.json';
 
 function getDB() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({
+      users: {},
+      daily: {}
+    }, null, 2));
   }
-  return JSON.parse(fs.readFileSync(DB_PATH));
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  if (!data.users) data.users = {};
+
+  return data;
 }
 
 function saveDB(data) {
@@ -31,9 +38,12 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = 10000;
+    if (db.users[id] === undefined) {
+      db.users[id] = 10000;
+      saveDB(db);
+    }
 
-    if (db[id] < aposta) {
+    if (db.users[id] < aposta) {
       return message.reply('❌ Você não tem saldo suficiente.');
     }
 
@@ -44,11 +54,11 @@ module.exports = (client) => {
     }
 
     if (resultado === escolha) {
-      db[id] += aposta;
+      db.users[id] += aposta;
       saveDB(db);
       return message.reply(`🪙 Deu **${resultado}**! Você ganhou ${aposta} moedas!`);
     } else {
-      db[id] -= aposta;
+      db.users[id] -= aposta;
       saveDB(db);
       return message.reply(`🪙 Deu **${resultado}**! Você perdeu ${aposta} moedas.`);
     }
