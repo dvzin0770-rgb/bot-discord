@@ -10,13 +10,14 @@ const pings = require('./pings');
 const quiz = require('./quiz');
 const level = require('./level');
 const rankEventos = require('./rank-eventos');
-const boasVindas = require('./boas-vindas'); // 🔥 ADICIONADO
+const boasVindas = require('./boas-vindas');
+const mines = require('./mines'); // 🔥 ADICIONADO
 
 // ===== CLIENT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers, // 🔥 NECESSÁRIO PRO BOAS-VINDAS
+    GatewayIntentBits.GuildMembers, // 🔥 BOAS-VINDAS
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions
@@ -41,7 +42,8 @@ pings(client);
 quiz(client);
 level(client);
 rankEventos(client);
-boasVindas(client); // 🔥 ADICIONADO
+boasVindas(client);
+mines(client); // 🔥 ADICIONADO
 
 // ===== READY =====
 client.once('ready', () => {
