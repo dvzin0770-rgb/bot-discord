@@ -45,38 +45,22 @@ module.exports = (client) => {
 
   const jogos = new Map();
 
-  client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    if (!message.content.startsWith('!mines')) return;
-
-    const args = message.content.split(' ');
-    const minas = parseInt(args[1]);
-    const aposta = parseInt(args[2]);
-
-    if (!minas || !aposta) {
-      return message.reply('❌ Use: !mines <minas> <aposta>');
-    }
-
-    if (minas < 1 || minas > 5) {
-      return message.reply('❌ Minas entre 1 e 5.');
-    }
+  async function iniciarJogo(message, minas, aposta) {
 
     const db = getDB();
     const id = message.author.id;
 
-    // 🔥 cria usuário sem resetar
     if (db.users[id] === undefined) {
       db.users[id] = 10000;
       saveDB(db);
     }
 
     if (db.users[id] < aposta) {
-  return message.reply(
-    `💸 Seu saldo é de **${db.users[id]} moedas**.\n` +
-    `Como você vai apostar **${aposta}** se não tem isso? 🤨`
-  );
-}
+      return message.reply(
+        `💸 Seu saldo é de **${db.users[id]} moedas**.\n` +
+        `Como você vai apostar **${aposta}** se não tem isso? 🤨`
+      );
+    }
 
     db.users[id] -= aposta;
     saveDB(db);
@@ -157,6 +141,12 @@ module.exports = (client) => {
         });
       }
 
+      // 🔁 BOTÃO JOGAR NOVAMENTE (AUTOMÁTICO)
+      if (interaction.customId === 'jogar_novamente') {
+        await interaction.deferUpdate();
+        return iniciarJogo(message, jogo.minas, jogo.aposta);
+      }
+
       await interaction.deferUpdate();
 
       if (!jogo.ativo) return;
@@ -170,10 +160,17 @@ module.exports = (client) => {
 
         jogo.ativo = false;
 
+        const rowReplay = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('jogar_novamente')
+            .setLabel('🔁 Jogar novamente')
+            .setStyle(ButtonStyle.Primary)
+        );
+
         return msg.edit({
           content: `💰 Você sacou ${ganho} moedas!`,
           embeds: [],
-          components: []
+          components: [rowReplay]
         });
       }
 
@@ -183,10 +180,17 @@ module.exports = (client) => {
         jogo.ativo = false;
         jogo.revelados = jogo.grid.map(() => true);
 
+        const rowReplay = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('jogar_novamente')
+            .setLabel('🔁 Jogar novamente')
+            .setStyle(ButtonStyle.Primary)
+        );
+
         return msg.edit({
           content: '💣 BOOM! Você perdeu tudo!',
           embeds: [],
-          components: gerarBotoes()
+          components: [rowReplay]
         });
       }
 
@@ -198,7 +202,26 @@ module.exports = (client) => {
         components: gerarBotoes()
       });
     });
+  }
 
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    if (!message.content.startsWith('!mines')) return;
+
+    const args = message.content.split(' ');
+    const minas = parseInt(args[1]);
+    const aposta = parseInt(args[2]);
+
+    if (!minas || !aposta) {
+      return message.reply('❌ Use: !mines <minas> <aposta>');
+    }
+
+    if (minas < 1 || minas > 5) {
+      return message.reply('❌ Minas entre 1 e 5.');
+    }
+
+    iniciarJogo(message, minas, aposta);
   });
 
 };
