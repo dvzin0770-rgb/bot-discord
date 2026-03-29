@@ -4,24 +4,64 @@ const { EmbedBuilder } = require('discord.js');
 const DB_PATH = './economia.json';
 
 function getDB() {
-  return JSON.parse(fs.readFileSync(DB_PATH));
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({
+      users: {},
+      daily: {}
+    }, null, 2));
+  }
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  if (!data.users) data.users = {};
+
+  return data;
 }
 
 function saveDB(data) {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
-const emojis = ['🍒', '🍋', '🍉', '💎', '💣'];
+// 🎰 símbolos
+const simbolos = ['🍒','🍋','🍇','💎','🔥','👑'];
 
 function girar() {
-  return emojis[Math.floor(Math.random() * emojis.length)];
+  return [
+    simbolos[Math.floor(Math.random() * simbolos.length)],
+    simbolos[Math.floor(Math.random() * simbolos.length)],
+    simbolos[Math.floor(Math.random() * simbolos.length)]
+  ];
+}
+
+function calcular(resultado, aposta) {
+  const [a, b, c] = resultado;
+
+  // 👑 JACKPOT
+  if (a === '👑' && b === '👑' && c === '👑') {
+    return { ganho: aposta * 15, msg: '👑 JACKPOT INSANO x15' };
+  }
+
+  // 💎 SUPER
+  if (a === '💎' && b === '💎' && c === '💎') {
+    return { ganho: aposta * 10, msg: '💎 SUPER JACKPOT x10' };
+  }
+
+  // 🔥 trio
+  if (a === b && b === c) {
+    return { ganho: aposta * 5, msg: '🔥 TRIO PERFEITO x5' };
+  }
+
+  // dupla
+  if (a === b || b === c || a === c) {
+    return { ganho: aposta * 2, msg: '✨ DUPLA x2' };
+  }
+
+  return { ganho: 0, msg: '💀 Perdeu tudo...' };
 }
 
 module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (!message.guild) return;
 
     if (!message.content.startsWith('!slot')) return;
 
@@ -29,114 +69,65 @@ module.exports = (client) => {
     const aposta = parseInt(args[1]);
 
     if (!aposta) {
-      return message.reply('❌ Use: !slot <valor>');
+      return message.reply('❌ Use: !slot <aposta>');
     }
 
     const db = getDB();
     const id = message.author.id;
 
-    if (db[id] === undefined) db[id] = 0;
-
-    if (db[id] < aposta) {
-      return message.reply('❌ Você não tem saldo suficiente.');
+    if (db.users[id] === undefined) {
+      db.users[id] = 10000;
+      saveDB(db);
     }
 
-    db[id] -= aposta;
+    if (db.users[id] < aposta) {
+      return message.reply(
+        `💸 Seu saldo é **${db.users[id]} moedas**.\nComo vai apostar isso? 🤨`
+      );
+    }
+
+    db.users[id] -= aposta;
     saveDB(db);
 
-    // 🎰 EMBED INICIAL
     const embed = new EmbedBuilder()
-      .setColor('#f1c40f')
-      .setTitle('🎰 SLOT — FROSTVOW')
-      .setDescription('```🎲 Girando...\n\n[ ⬜ | ⬜ | ⬜ ]```')
-      .setFooter({ text: `Aposta: ${aposta}` });
+      .setTitle('🎰 SLOT — GIRANDO...')
+      .setDescription('`❔ ❔ ❔`')
+      .setColor('#2b2d31');
 
     const msg = await message.channel.send({ embeds: [embed] });
 
-    // 🎲 ANIMAÇÃO (fake)
-    for (let i = 0; i < 3; i++) {
-      await new Promise(r => setTimeout(r, 700));
+    // ⏳ animação fake
+    await new Promise(r => setTimeout(r, 1000));
+    await msg.edit({
+      embeds: [embed.setDescription('`🍒 ❔ ❔`')]
+    });
 
-      const temp = `[ ${girar()} | ${girar()} | ${girar()} ]`;
+    await new Promise(r => setTimeout(r, 1000));
+    await msg.edit({
+      embeds: [embed.setDescription('`🍒 🍋 ❔`')]
+    });
 
-      await msg.edit({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#f1c40f')
-            .setTitle('🎰 SLOT — FROSTVOW')
-            .setDescription(`\`\`\`🎲 Girando...\n\n${temp}\`\`\``)
-        ]
-      });
-    }
+    await new Promise(r => setTimeout(r, 1000));
 
-    // 🎯 RESULTADO FINAL
-    const r1 = girar();
-    const r2 = girar();
-    const r3 = girar();
+    const resultado = girar();
+    const { ganho, msg: resultadoMsg } = calcular(resultado, aposta);
 
-    let ganho = 0;
-    let resultadoTipo = 'perdeu';
-
-    if (r1 === r2 && r2 === r3) {
-      if (r1 === '💎') {
-        ganho = aposta * 5;
-        resultadoTipo = 'jackpot';
-      } else if (r1 === '💣') {
-        ganho = 0;
-        resultadoTipo = 'explosao';
-      } else {
-        ganho = aposta * 3;
-        resultadoTipo = 'win';
-      }
-    } else if (r1 === r2 || r2 === r3 || r1 === r3) {
-      ganho = aposta * 2;
-      resultadoTipo = 'win';
-    }
-
-    db[id] += ganho;
+    db.users[id] += ganho;
     saveDB(db);
 
-    const resultado = `[ ${r1} | ${r2} | ${r3} ]`;
-
-    let cor = '#e74c3c';
-    let titulo = '💀 Você perdeu!';
-    let descExtra = 'Melhor sorte na próxima...';
-
-    if (resultadoTipo === 'win') {
-      cor = '#2ecc71';
-      titulo = '🎉 Vitória!';
-      descExtra = `Você ganhou **${ganho} moedas!**`;
-    }
-
-    if (resultadoTipo === 'jackpot') {
-      cor = '#f1c40f';
-      titulo = '💎 JACKPOT!!!';
-      descExtra = `🔥 Você ganhou **${ganho} moedas!!!**`;
-    }
-
-    if (resultadoTipo === 'explosao') {
-      cor = '#c0392b';
-      titulo = '💣 EXPLODIU!';
-      descExtra = 'Você perdeu tudo 💀';
-    }
-
-    const finalEmbed = new EmbedBuilder()
-      .setColor(cor)
-      .setTitle(`🎰 SLOT — FROSTVOW`)
+    const final = new EmbedBuilder()
+      .setTitle('🎰 SLOT — RESULTADO')
       .setDescription(
-        `\`\`\`\n${resultado}\n\`\`\`\n\n` +
-        `💰 Aposta: **${aposta}**\n` +
-        `📊 Resultado: **+${ganho}**\n\n` +
-        `${titulo}\n${descExtra}`
+        `\`${resultado.join(' ')}\`\n\n` +
+        `${resultadoMsg}\n\n` +
+        `💰 Aposta: ${aposta}\n` +
+        `💎 Ganho: ${ganho}\n` +
+        `🏦 Saldo: ${db.users[id]}`
       )
-      .addFields({
-        name: '🏦 Saldo atual',
-        value: `**${db[id]} moedas**`
-      })
-      .setFooter({ text: 'Frostvow Cassino' })
-      .setTimestamp();
+      .setColor(ganho > 0 ? '#00ff88' : '#ff3b3b')
+      .setFooter({ text: 'Tente sua sorte novamente...' });
 
-    await msg.edit({ embeds: [finalEmbed] });
+    msg.edit({ embeds: [final] });
 
   });
 
