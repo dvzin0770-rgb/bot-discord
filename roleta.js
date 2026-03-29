@@ -1,255 +1,243 @@
-const fs = require('fs');
 const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  EmbedBuilder
 } = require('discord.js');
 
-const DB_PATH = './economia.json';
+const eco = require('./economia');
 
-// ==========================
-// 📁 BANCO DE DADOS
-// ==========================
-function getDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: {},
-      daily: {},
-      roletaStats: {}
-    }, null, 2));
-  }
+// ==============================
+// 🧠 SISTEMA GLOBAL
+// ==============================
+const cooldown = new Map();
+const historicoGlobal = [];
 
-  const data = JSON.parse(fs.readFileSync(DB_PATH));
+// ==============================
+// 🎯 CONFIG
+// ==============================
+const COOLDOWN = 5000;
+const MAX_HIST = 15;
 
-  if (!data.users) data.users = {};
-  if (!data.daily) data.daily = {};
-  if (!data.roletaStats) data.roletaStats = {};
-
-  return data;
-}
-
-function saveDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
-
-// ==========================
-// 🎡 CONFIG ROLETA
-// ==========================
-const cores = [
-  { nome: 'red', emoji: '🔴', peso: 48 },
-  { nome: 'black', emoji: '⚫', peso: 48 },
-  { nome: 'green', emoji: '🟢', peso: 4 } // raro
+// ==============================
+// 🎡 NUMEROS DA ROLETA
+// ==============================
+const vermelhos = [
+  1,3,5,7,9,12,14,16,18,19,
+  21,23,25,27,30,32,34,36
 ];
 
-// ==========================
-// 🎲 SORTEIO COM PESO
-// ==========================
-function girarRoleta() {
-  const total = cores.reduce((acc, c) => acc + c.peso, 0);
-  const rand = Math.random() * total;
+const pretos = [
+  2,4,6,8,10,11,13,15,17,20,
+  22,24,26,28,29,31,33,35
+];
 
-  let soma = 0;
+// ==============================
+// 🎨 COR
+// ==============================
+function getCor(num) {
+  if (num === 0) return 'verde';
+  if (vermelhos.includes(num)) return 'vermelho';
+  return 'preto';
+}
 
-  for (const cor of cores) {
-    soma += cor.peso;
-    if (rand <= soma) return cor;
+// ==============================
+// 🎲 GIRAR ROLETA
+// ==============================
+function girar() {
+  return Math.floor(Math.random() * 37);
+}
+
+// ==============================
+// 📊 HISTÓRICO
+// ==============================
+function addHist(num) {
+  historicoGlobal.push(num);
+  if (historicoGlobal.length > MAX_HIST) {
+    historicoGlobal.shift();
   }
 }
 
-// ==========================
-// 💰 MULTIPLICADORES
-// ==========================
-function calcularGanho(corEscolhida, resultado, aposta) {
-  if (corEscolhida !== resultado.nome) return -aposta;
+// ==============================
+// 💰 CALCULAR GANHO
+// ==============================
+function calcular(aposta, tipo, valor, resultado, cor) {
 
-  if (resultado.nome === 'green') return aposta * 14;
-  return aposta * 2;
-}
+  let ganho = 0;
 
-// ==========================
-// 📊 STATS
-// ==========================
-function getStats(db, id) {
-  if (!db.roletaStats[id]) {
-    db.roletaStats[id] = {
-      wins: 0,
-      loses: 0,
-      total: 0
-    };
+  // número exato
+  if (tipo === 'numero') {
+    if (Number(valor) === resultado) {
+      ganho = aposta * 35;
+    }
   }
-  return db.roletaStats[id];
+
+  // cor
+  if (tipo === 'cor') {
+    if (valor === cor) {
+      ganho = aposta * 2;
+    }
+  }
+
+  // par/impar
+  if (tipo === 'paridade') {
+    if (resultado !== 0) {
+      if (valor === 'par' && resultado % 2 === 0) ganho = aposta * 2;
+      if (valor === 'impar' && resultado % 2 !== 0) ganho = aposta * 2;
+    }
+  }
+
+  // alto/baixo
+  if (tipo === 'range') {
+    if (valor === 'alto' && resultado >= 19) ganho = aposta * 2;
+    if (valor === 'baixo' && resultado >= 1 && resultado <= 18) ganho = aposta * 2;
+  }
+
+  return ganho;
 }
 
-// ==========================
+// ==============================
 // 🎨 EMBED
-// ==========================
-function criarEmbed(resultado, escolha, aposta, ganho, saldo, stats) {
-  const win = ganho > 0;
+// ==============================
+function criarEmbed(user, aposta, tipo, valor, resultado, cor, ganho, saldo) {
+
+  const ganhou = ganho > 0;
 
   return new EmbedBuilder()
+    .setColor(ganhou ? '#22c55e' : '#ef4444')
     .setTitle('🎡 ROLETA INSANA — FROSTVOW')
     .setDescription(
-      `🎯 **Você apostou:** ${escolha}\n` +
-      `🎡 **Resultado:** ${resultado.emoji} (${resultado.nome})\n\n` +
-      `${win ? '✅ GANHOU!' : '❌ PERDEU!'}\n\n` +
-      `💰 **Aposta:** ${aposta}\n` +
-      `🏆 **Resultado:** ${ganho}\n` +
-      `💳 **Saldo:** ${saldo}\n\n` +
-      `📊 **Vitórias:** ${stats.wins}\n` +
-      `📉 **Derrotas:** ${stats.loses}`
+      `👤 ${user}\n\n` +
+      `🎯 Aposta: **${tipo} (${valor})**\n` +
+      `💸 Valor: **${aposta}**\n\n` +
+      `🎡 Resultado: **${resultado} (${cor})**\n\n` +
+      `💰 Ganho: **${ganho}**\n` +
+      `🏦 Saldo: **${saldo}**\n\n` +
+      `📜 Histórico: ${historicoGlobal.join(', ')}`
     )
-    .setColor(
-      resultado.nome === 'green' ? '#22c55e' :
-      resultado.nome === 'red' ? '#ef4444' : '#000000'
-    )
-    .setFooter({ text: 'Boa sorte na próxima rodada 🎡' });
+    .setFooter({ text: ganhou ? 'Você ganhou!' : 'Você perdeu!' });
 }
 
-// ==========================
-// 🔁 BOTÕES
-// ==========================
-function criarBotoes(aposta) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`roleta_red_${aposta}`)
-        .setLabel('🔴 Red')
-        .setStyle(ButtonStyle.Danger),
-
-      new ButtonBuilder()
-        .setCustomId(`roleta_black_${aposta}`)
-        .setLabel('⚫ Black')
-        .setStyle(ButtonStyle.Secondary),
-
-      new ButtonBuilder()
-        .setCustomId(`roleta_green_${aposta}`)
-        .setLabel('🟢 Green')
-        .setStyle(ButtonStyle.Success)
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`roleta_double_${aposta}`)
-        .setLabel('🔥 Dobrar')
-        .setStyle(ButtonStyle.Primary)
-    )
-  ];
-}
-
-// ==========================
-// 🎡 SISTEMA PRINCIPAL
-// ==========================
+// ==============================
+// 🎮 COMANDO
+// ==============================
 module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
+
     if (message.author.bot) return;
     if (!message.content.startsWith('!roleta')) return;
 
     const args = message.content.split(' ');
     const aposta = Number(args[1]);
-    const escolha = args[2]?.toLowerCase();
+    const tipo = args[2]?.toLowerCase();
+    const valor = args[3]?.toLowerCase();
     const id = message.author.id;
 
+    // ==============================
+    // COOLDOWN
+    // ==============================
+    const agora = Date.now();
+
+    if (cooldown.has(id)) {
+      if (agora - cooldown.get(id) < COOLDOWN) {
+        return message.reply('⏳ Aguarde...');
+      }
+    }
+
+    cooldown.set(id, agora);
+
+    // ==============================
+    // VALIDAÇÃO
+    // ==============================
     if (!aposta || aposta <= 0) {
-      return message.reply('❌ Use: !roleta <valor> <red/black/green>');
+      return message.reply('❌ Aposta inválida.');
     }
 
-    if (!['red', 'black', 'green'].includes(escolha)) {
-      return message.reply('❌ Escolha: red, black ou green');
+    const saldo = eco.getSaldo(id);
+
+    if (aposta > saldo) {
+      return message.reply(`💸 Seu saldo: ${saldo}`);
     }
 
-    const db = getDB();
-
-    if (db.users[id] === undefined) db.users[id] = 10000;
-
-    if (aposta > db.users[id]) {
-      return message.reply(`💸 Saldo: ${db.users[id]}`);
+    if (!tipo) {
+      return message.reply(
+        '❌ Tipos: numero | cor | paridade | range'
+      );
     }
 
-    const stats = getStats(db, id);
+    // validações específicas
+    if (tipo === 'numero') {
+      if (isNaN(valor) || valor < 0 || valor > 36) {
+        return message.reply('❌ Número de 0 a 36.');
+      }
+    }
 
-    const resultado = girarRoleta();
-    const ganho = calcularGanho(escolha, resultado, aposta);
+    if (tipo === 'cor') {
+      if (!['vermelho', 'preto'].includes(valor)) {
+        return message.reply('❌ Use vermelho ou preto.');
+      }
+    }
 
-    db.users[id] += ganho;
+    if (tipo === 'paridade') {
+      if (!['par', 'impar'].includes(valor)) {
+        return message.reply('❌ Use par ou impar.');
+      }
+    }
 
-    stats.total++;
-    ganho > 0 ? stats.wins++ : stats.loses++;
+    if (tipo === 'range') {
+      if (!['alto', 'baixo'].includes(valor)) {
+        return message.reply('❌ Use alto ou baixo.');
+      }
+    }
 
-    saveDB(db);
+    // ==============================
+    // REMOVE DINHEIRO
+    // ==============================
+    eco.removeMoney(id, aposta);
 
+    // ==============================
+    // ANIMAÇÃO
+    // ==============================
+    const msg = await message.reply('🎡 Girando...');
+
+    const frames = ['🔴','⚫','🟢','⚫','🔴'];
+
+    for (let f of frames) {
+      await new Promise(r => setTimeout(r, 400));
+      await msg.edit(`🎡 ${f}`);
+    }
+
+    // ==============================
+    // RESULTADO
+    // ==============================
+    const numero = girar();
+    const cor = getCor(numero);
+
+    addHist(numero);
+
+    const ganho = calcular(aposta, tipo, valor, numero, cor);
+
+    if (ganho > 0) {
+      eco.addMoney(id, ganho);
+    }
+
+    const saldoFinal = eco.getSaldo(id);
+
+    // ==============================
+    // EMBED FINAL
+    // ==============================
     const embed = criarEmbed(
-      resultado,
-      escolha,
+      message.author.username,
       aposta,
+      tipo,
+      valor,
+      numero,
+      cor,
       ganho,
-      db.users[id],
-      stats
+      saldoFinal
     );
 
-    const msg = await message.channel.send({
-      embeds: [embed],
-      components: criarBotoes(aposta)
-    });
-
-    const collector = msg.createMessageComponentCollector({ time: 60000 });
-
-    collector.on('collect', async (interaction) => {
-
-      if (interaction.user.id !== id) {
-        return interaction.reply({
-          content: '❌ Não é seu jogo.',
-          ephemeral: true
-        });
-      }
-
-      await interaction.deferUpdate();
-
-      let novaAposta = aposta;
-      let novaEscolha = escolha;
-
-      if (interaction.customId.includes('double')) {
-        novaAposta = aposta * 2;
-      }
-
-      if (interaction.customId.includes('red')) novaEscolha = 'red';
-      if (interaction.customId.includes('black')) novaEscolha = 'black';
-      if (interaction.customId.includes('green')) novaEscolha = 'green';
-
-      const db = getDB();
-
-      if (novaAposta > db.users[id]) {
-        return interaction.followUp({
-          content: `💸 Você tem ${db.users[id]}`,
-          ephemeral: true
-        });
-      }
-
-      const stats = getStats(db, id);
-
-      const resultado = girarRoleta();
-      const ganho = calcularGanho(novaEscolha, resultado, novaAposta);
-
-      db.users[id] += ganho;
-
-      stats.total++;
-      ganho > 0 ? stats.wins++ : stats.loses++;
-
-      saveDB(db);
-
-      const embed = criarEmbed(
-        resultado,
-        novaEscolha,
-        novaAposta,
-        ganho,
-        db.users[id],
-        stats
-      );
-
-      await msg.edit({
-        embeds: [embed],
-        components: criarBotoes(novaAposta)
-      });
+    await msg.edit({
+      content: '',
+      embeds: [embed]
     });
 
   });
