@@ -1,26 +1,5 @@
-const fs = require('fs');
 const { EmbedBuilder } = require('discord.js');
-
-const DB_PATH = './economia.json';
-
-function getDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: {},
-      daily: {}
-    }, null, 2));
-  }
-
-  const data = JSON.parse(fs.readFileSync(DB_PATH));
-  if (!data.users) data.users = {};
-  if (!data.daily) data.daily = {};
-
-  return data;
-}
-
-function saveDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
+const eco = require('./economia');
 
 module.exports = (client) => {
 
@@ -29,22 +8,21 @@ module.exports = (client) => {
 
     const args = message.content.split(' ');
     const cmd = args[0].toLowerCase();
-
-    const db = getDB();
     const id = message.author.id;
-
-    if (db.users[id] === undefined) {
-      db.users[id] = 10000;
-      saveDB(db);
-    }
 
     // 💰 SALDO
     if (cmd === '!saldo') {
-      return message.reply(`💰 Seu saldo: ${db.users[id]} moedas`);
+      return message.reply(`💰 Seu saldo: ${eco.getSaldo(id)} moedas`);
     }
 
     // 🎁 DAILY
     if (cmd === '!daily') {
+      const fs = require('fs');
+      const DB_PATH = './economia.json';
+      const db = JSON.parse(fs.readFileSync(DB_PATH));
+
+      if (!db.daily) db.daily = {};
+
       const agora = Date.now();
       const ultimo = db.daily[id] || 0;
 
@@ -52,16 +30,19 @@ module.exports = (client) => {
         return message.reply('⏳ Você já coletou hoje!');
       }
 
-      db.users[id] += 5000;
+      eco.addSaldo(id, 5000);
       db.daily[id] = agora;
-      saveDB(db);
+      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 
       return message.reply('🎁 Você ganhou 5000 moedas!');
     }
 
-    // 🏆 TOP RICOS
+    // 🏆 TOP
     if (cmd === '!topricos') {
-      const ranking = Object.entries(db.users)
+      const fs = require('fs');
+      const db = JSON.parse(fs.readFileSync('./economia.json'));
+
+      const ranking = Object.entries(db.users || {})
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
@@ -79,20 +60,11 @@ module.exports = (client) => {
         texto += `${medalha} **${nome}** — 💰 ${ranking[i][1]}\n`;
       }
 
-      const pos = ranking.findIndex(u => u[0] === id);
-
       return message.channel.send({
         embeds: [
           new EmbedBuilder()
-            .setColor('#FFD700')
-            .setTitle('💰 RANKING DE RICOS — FROSTVOW')
-            .setDescription(texto || 'Ninguém no ranking ainda.')
-            .addFields({
-              name: '📍 Sua posição',
-              value: pos !== -1
-                ? `#${pos + 1} com ${db.users[id]} moedas`
-                : `Fora do top (💰 ${db.users[id]})`
-            })
+            .setTitle('💰 TOP RICOS')
+            .setDescription(texto || 'Ninguém ainda.')
         ]
       });
     }
