@@ -8,41 +8,36 @@ const {
 
 module.exports = (client) => {
 
-  const CANAL = '💬丨ɢᴇʀᴀʟ';
   const PERGUNTAS_PATH = './perguntas.json';
-  const DB_PATH = './quiz-db.json';
 
+  // =========================
   // 🔥 CONTROLE GLOBAL
-  let quizRodando = false;
-  let intervalo = null;
+  // =========================
+  let quizAtivo = false;
+  let cooldown = new Map(); // anti spam
 
   // =========================
-  // 📁 BANCO DE DADOS
-  // =========================
-  function getDB() {
-    if (!fs.existsSync(DB_PATH)) {
-      fs.writeFileSync(DB_PATH, JSON.stringify({ users: {} }, null, 2));
-    }
-
-    const data = JSON.parse(fs.readFileSync(DB_PATH));
-
-    if (!data.users) data.users = {};
-
-    return data;
-  }
-
-  function saveDB(data) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-  }
-
-  // =========================
-  // ❓ PERGUNTAS
+  // 📖 CARREGAR PERGUNTA
   // =========================
   function getPergunta() {
-    const data = JSON.parse(fs.readFileSync(PERGUNTAS_PATH));
-    return data[Math.floor(Math.random() * data.length)];
+    try {
+      const data = JSON.parse(fs.readFileSync(PERGUNTAS_PATH));
+
+      if (!Array.isArray(data) || data.length === 0) {
+        return null;
+      }
+
+      return data[Math.floor(Math.random() * data.length)];
+
+    } catch (err) {
+      console.log('❌ ERRO PERGUNTAS:', err);
+      return null;
+    }
   }
 
+  // =========================
+  // 🏆 PONTOS
+  // =========================
   function getPontos(dif) {
     if (dif === 'facil') return 1;
     if (dif === 'medio') return 2;
@@ -51,141 +46,153 @@ module.exports = (client) => {
   }
 
   // =========================
-  // 🎨 EMBED INSANO
+  // 🔘 BOTÕES CORRETOS
   // =========================
-  function criarEmbed(p) {
-    return new EmbedBuilder()
+  function criarBotoes(pergunta) {
+
+    const row = new ActionRowBuilder();
+
+    for (let i = 0; i < pergunta.alternativas.length; i++) {
+
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`quiz_${Date.now()}_${i}`)
+          .setLabel(pergunta.alternativas[i])
+          .setStyle(ButtonStyle.Primary)
+      );
+
+    }
+
+    return [row];
+  }
+
+  // =========================
+  // 🚀 EXECUTAR QUIZ
+  // =========================
+  async function executarQuiz(message) {
+
+    if (quizAtivo) {
+      return message.reply('❌ Já existe um quiz acontecendo.');
+    }
+
+    const pergunta = getPergunta();
+
+    if (!pergunta) {
+      return message.reply('❌ Erro ao carregar perguntas.');
+    }
+
+    quizAtivo = true;
+
+    const pontos = getPontos(pergunta.dificuldade);
+
+    const embed = new EmbedBuilder()
       .setTitle('🧠 QUIZ INSANO — FROSTVOW')
-      .setDescription(`**${p.pergunta}**\n\n💬 Responda antes do tempo acabar!`)
+      .setDescription(
+        `**${pergunta.pergunta}**\n\n` +
+        `💬 Responda antes do tempo acabar!`
+      )
       .addFields(
         {
           name: '⚔️ Dificuldade',
-          value: p.dificuldade.toUpperCase(),
+          value: pergunta.dificuldade.toUpperCase(),
           inline: true
         },
         {
           name: '🏆 Pontos',
-          value: `${getPontos(p.dificuldade)}`,
+          value: `${pontos}`,
           inline: true
         }
       )
-      .setColor('#5865F2')
-      .setFooter({ text: 'Sistema automático • 30 minutos' });
-  }
+      .setFooter({ text: '⏱️ Tempo: 30 segundos' })
+      .setColor('#5865F2');
 
-  // =========================
-  // 🔘 BOTÕES
-  // =========================
-  function criarBotoes(p) {
-    const row = new ActionRowBuilder();
-
-    p.alternativas.forEach((alt, i) => {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`quiz_${i}`)
-          .setLabel(alt)
-          .setStyle(ButtonStyle.Primary)
-      );
+    const msg = await message.channel.send({
+      embeds: [embed],
+      components: criarBotoes(pergunta)
     });
 
-    return row;
-  }
-
-  // =========================
-  // 🚀 ENVIAR PERGUNTA
-  // =========================
-  async function enviarPergunta(canal) {
-    const pergunta = getPergunta();
-    const pontos = getPontos(pergunta.dificuldade);
-
-    const msg = await canal.send({
-      embeds: [criarEmbed(pergunta)],
-      components: [criarBotoes(pergunta)]
-    });
+    let respondido = false;
 
     const collector = msg.createMessageComponentCollector({
       time: 30000
     });
 
-    let respondido = false;
-
+    // =========================
+    // 🎯 RESPOSTA
+    // =========================
     collector.on('collect', async (interaction) => {
 
       if (respondido) {
         return interaction.reply({
-          content: '❌ Já responderam essa!',
+          content: '❌ Já responderam!',
           ephemeral: true
         });
       }
 
       respondido = true;
-      collector.stop();
 
-      const resposta = parseInt(interaction.customId.split('_')[1]);
+      const escolha = parseInt(interaction.customId.split('_')[2]);
 
-      const db = getDB();
-      const id = interaction.user.id;
-
-      if (resposta === pergunta.resposta) {
-
-        if (!db.users[id]) db.users[id] = 0;
-
-        db.users[id] += pontos;
-        saveDB(db);
+      if (escolha === pergunta.resposta) {
 
         await interaction.reply(
-          `✅ Acertou! +${pontos} ponto(s)`
+          `✅ **Correto!**\n🏆 +${pontos} pontos`
         );
 
       } else {
+
         await interaction.reply(
-          `❌ Errou! Resposta correta: **${pergunta.alternativas[pergunta.resposta]}**`
+          `❌ **Errado!**\nResposta: **${pergunta.alternativas[pergunta.resposta]}**`
         );
+
       }
 
-      await msg.edit({ components: [] });
+      collector.stop();
     });
 
+    // =========================
+    // ⏰ FINALIZAÇÃO
+    // =========================
     collector.on('end', async () => {
+
       if (!respondido) {
         await msg.reply('⏰ Tempo esgotado!');
-        await msg.edit({ components: [] });
       }
+
+      await msg.edit({
+        components: []
+      });
+
+      quizAtivo = false;
     });
+
   }
 
   // =========================
-  // ⏱️ SISTEMA DE 30 MIN
+  // 🎮 COMANDO
   // =========================
-  function iniciarQuiz(canal) {
+  client.on('messageCreate', async (message) => {
 
-    if (quizRodando) {
-      console.log('⚠️ Quiz já está rodando');
-      return;
+    if (message.author.bot) return;
+
+    if (!message.content.startsWith('!quiz')) return;
+
+    const id = message.author.id;
+    const agora = Date.now();
+
+    // 🔥 COOLDOWN 15s
+    if (cooldown.has(id)) {
+      const tempo = cooldown.get(id);
+
+      if (agora - tempo < 15000) {
+        return message.reply('⏳ Espere um pouco para usar novamente.');
+      }
     }
 
-    quizRodando = true;
+    cooldown.set(id, agora);
 
-    console.log('✅ Quiz iniciado corretamente (30min fixo)');
+    executarQuiz(message);
 
-    // 🔥 NÃO ENVIA IMEDIATO
-    intervalo = setInterval(() => {
-      enviarPergunta(canal);
-    }, 30 * 60 * 1000);
-  }
-
-  // =========================
-  // 🟢 READY
-  // =========================
-  client.once('ready', () => {
-
-    const guild = client.guilds.cache.first();
-    if (!guild) return;
-
-    const canal = guild.channels.cache.find(c => c.name === CANAL);
-    if (!canal) return console.log('❌ Canal não encontrado');
-
-    iniciarQuiz(canal);
   });
 
 };
