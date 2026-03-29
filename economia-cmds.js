@@ -1,74 +1,72 @@
+const fs = require('fs');
 const { EmbedBuilder } = require('discord.js');
-const eco = require('./economia');
+
+const DB_PATH = './economia.json';
+
+function getDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({ users: {}, daily: {} }, null, 2));
+  }
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  if (!data.users) data.users = {};
+  if (!data.daily) data.daily = {};
+
+  return data;
+}
+
+function saveDB(data) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+}
 
 module.exports = (client) => {
-
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    const args = message.content.split(' ');
-    const cmd = args[0].toLowerCase();
+    const cmd = message.content.split(' ')[0];
     const id = message.author.id;
 
-    // 💰 SALDO
-    if (cmd === '!saldo') {
-      return message.reply(`💰 Seu saldo: ${eco.getSaldo(id)} moedas`);
+    const db = getDB();
+
+    if (db.users[id] === undefined) {
+      db.users[id] = 10000;
+      saveDB(db);
     }
 
-    // 🎁 DAILY
+    if (cmd === '!saldo') {
+      return message.reply(`💰 Saldo: ${db.users[id]}`);
+    }
+
     if (cmd === '!daily') {
-      const fs = require('fs');
-      const DB_PATH = './economia.json';
-      const db = JSON.parse(fs.readFileSync(DB_PATH));
-
-      if (!db.daily) db.daily = {};
-
       const agora = Date.now();
       const ultimo = db.daily[id] || 0;
 
       if (agora - ultimo < 86400000) {
-        return message.reply('⏳ Você já coletou hoje!');
+        return message.reply('⏳ Já coletou hoje');
       }
 
-      eco.addSaldo(id, 5000);
+      db.users[id] += 5000;
       db.daily[id] = agora;
-      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+      saveDB(db);
 
-      return message.reply('🎁 Você ganhou 5000 moedas!');
+      return message.reply('🎁 +5000 moedas');
     }
 
-    // 🏆 TOP
     if (cmd === '!topricos') {
-      const fs = require('fs');
-      const db = JSON.parse(fs.readFileSync('./economia.json'));
-
-      const ranking = Object.entries(db.users || {})
+      const ranking = Object.entries(db.users)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
-      let texto = '';
+      let txt = '';
 
       for (let i = 0; i < ranking.length; i++) {
         const user = await client.users.fetch(ranking[i][0]).catch(() => null);
-        const nome = user ? user.username : 'Desconhecido';
-
-        const medalha =
-          i === 0 ? '🥇' :
-          i === 1 ? '🥈' :
-          i === 2 ? '🥉' : `#${i + 1}`;
-
-        texto += `${medalha} **${nome}** — 💰 ${ranking[i][1]}\n`;
+        txt += `#${i + 1} ${user?.username || 'User'} — ${ranking[i][1]}\n`;
       }
 
-      return message.channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle('💰 TOP RICOS')
-            .setDescription(texto || 'Ninguém ainda.')
-        ]
+      message.channel.send({
+        embeds: [new EmbedBuilder().setTitle('💰 TOP RICOS').setDescription(txt)]
       });
     }
-
   });
-
 };
