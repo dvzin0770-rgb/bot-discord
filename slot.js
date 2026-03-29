@@ -1,224 +1,207 @@
-const fs = require('fs');
 const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  EmbedBuilder
 } = require('discord.js');
 
-const DB_PATH = './economia.json';
+const eco = require('./economia');
 
-// ==========================
-// 📁 BANCO DE DADOS
-// ==========================
-function getDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: {},
-      daily: {}
-    }, null, 2));
+// =============================
+// 🧠 SISTEMA GLOBAL
+// =============================
+const cooldown = new Map();
+const historico = new Map();
+const streaks = new Map();
+
+// =============================
+// ⚙️ CONFIG
+// =============================
+const COOLDOWN_TEMPO = 5000;
+const MAX_HIST = 10;
+
+// =============================
+// 🎲 SORTEIO
+// =============================
+function sortear() {
+  return Math.random() < 0.5 ? 'cara' : 'coroa';
+}
+
+// =============================
+// 📊 HISTÓRICO
+// =============================
+function addHistorico(id, resultado) {
+
+  if (!historico.has(id)) {
+    historico.set(id, []);
   }
 
-  const data = JSON.parse(fs.readFileSync(DB_PATH));
+  const lista = historico.get(id);
 
-  if (!data.users) data.users = {};
-  if (!data.daily) data.daily = {};
+  lista.push(resultado);
+
+  if (lista.length > MAX_HIST) {
+    lista.shift();
+  }
+
+}
+
+// =============================
+// 🔥 STREAK
+// =============================
+function atualizarStreak(id, ganhou) {
+
+  if (!streaks.has(id)) {
+    streaks.set(id, { win: 0, lose: 0 });
+  }
+
+  const data = streaks.get(id);
+
+  if (ganhou) {
+    data.win += 1;
+    data.lose = 0;
+  } else {
+    data.lose += 1;
+    data.win = 0;
+  }
 
   return data;
 }
 
-function saveDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
+// =============================
+// 🎨 EMBED
+// =============================
+function criarEmbed(user, escolha, resultado, aposta, ganho, saldo, streak, hist) {
 
-// ==========================
-// 🎰 CONFIGURAÇÕES
-// ==========================
-const simbolos = [
-  { emoji: '🍒', peso: 30 },
-  { emoji: '🍋', peso: 25 },
-  { emoji: '🍇', peso: 20 },
-  { emoji: '💎', peso: 10 },
-  { emoji: '🔥', peso: 8 },
-  { emoji: '👑', peso: 5 },
-  { emoji: '💀', peso: 2 } // símbolo raro (jackpot)
-];
+  const ganhou = escolha === resultado;
 
-// ==========================
-// 🎲 RANDOM COM PESO
-// ==========================
-function pegarSimbolo() {
-  const total = simbolos.reduce((acc, s) => acc + s.peso, 0);
-  const rand = Math.random() * total;
-
-  let soma = 0;
-
-  for (const s of simbolos) {
-    soma += s.peso;
-    if (rand <= soma) return s.emoji;
-  }
-}
-
-// ==========================
-// 💰 CALCULAR GANHO
-// ==========================
-function calcularGanho(r1, r2, r3, aposta) {
-
-  // JACKPOT
-  if (r1 === '💀' && r2 === '💀' && r3 === '💀') {
-    return aposta * 20;
-  }
-
-  // 3 IGUAIS
-  if (r1 === r2 && r2 === r3) {
-    return aposta * 5;
-  }
-
-  // 2 IGUAIS
-  if (r1 === r2 || r2 === r3 || r1 === r3) {
-    return aposta * 2;
-  }
-
-  return 0;
-}
-
-// ==========================
-// 🎨 EMBED BONITO
-// ==========================
-function criarEmbed(resultado, aposta, ganho, saldo) {
   return new EmbedBuilder()
-    .setTitle('🎰 SLOT INSANO — FROSTVOW')
+    .setColor(ganhou ? '#22c55e' : '#ef4444')
+    .setTitle('🪙 COINFLIP INSANO')
     .setDescription(
-      `╔══════════════╗\n` +
-      ` ${resultado[0]} │ ${resultado[1]} │ ${resultado[2]}\n` +
-      `╚══════════════╝\n\n` +
-      `💰 **Aposta:** ${aposta}\n` +
-      `🏆 **Ganho:** ${ganho}\n` +
-      `💳 **Saldo:** ${saldo}`
+      `👤 **${user}**\n\n` +
+      `🧠 Escolha: **${escolha}**\n` +
+      `🎲 Resultado: **${resultado}**\n\n` +
+      `💸 Aposta: **${aposta}**\n` +
+      `💰 Ganho: **${ganho}**\n` +
+      `🏦 Saldo: **${saldo}**\n\n` +
+      `🔥 Streak Win: **${streak.win}**\n` +
+      `💀 Streak Lose: **${streak.lose}**\n\n` +
+      `📜 Histórico: ${hist.join(' | ') || 'Nenhum'}`
     )
-    .setColor('#111827')
-    .setFooter({ text: 'Boa sorte na próxima rodada 🍀' });
+    .setFooter({ text: ganhou ? 'Você ganhou!' : 'Você perdeu!' });
 }
 
-// ==========================
-// 🔁 BOTÕES
-// ==========================
-function criarBotoes(aposta) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`slot_repeat_${aposta}`)
-        .setLabel('🔁 Jogar novamente')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId(`slot_double_${aposta}`)
-        .setLabel('🔥 Dobrar aposta')
-        .setStyle(ButtonStyle.Danger)
-    )
-  ];
-}
-
-// ==========================
-// 🎰 SISTEMA PRINCIPAL
-// ==========================
+// =============================
+// 🎮 COMANDO
+// =============================
 module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
+
     if (message.author.bot) return;
-    if (!message.content.startsWith('!slot')) return;
+    if (!message.content.startsWith('!coinflip')) return;
 
     const args = message.content.split(' ');
     const aposta = Number(args[1]);
+    const escolha = args[2]?.toLowerCase();
     const id = message.author.id;
 
-    // 🔒 VALIDAÇÃO
+    // =============================
+    // ⏳ COOLDOWN
+    // =============================
+    const agora = Date.now();
+
+    if (cooldown.has(id)) {
+      const tempo = cooldown.get(id);
+
+      if (agora - tempo < COOLDOWN_TEMPO) {
+        return message.reply('⏳ Calma aí...');
+      }
+    }
+
+    cooldown.set(id, agora);
+
+    // =============================
+    // ❌ VALIDAÇÕES
+    // =============================
     if (!aposta || aposta <= 0) {
-      return message.reply('❌ Use: !slot <valor>');
+      return message.reply('❌ Valor inválido.');
     }
 
-    const db = getDB();
-
-    if (db.users[id] === undefined) {
-      db.users[id] = 10000;
+    if (!['cara', 'coroa'].includes(escolha)) {
+      return message.reply('❌ Escolha cara ou coroa.');
     }
 
-    if (aposta > db.users[id]) {
+    const saldo = eco.getSaldo(id);
+
+    if (aposta > saldo) {
       return message.reply(
-        `💸 Seu saldo é **${db.users[id]}**.\nComo vai apostar isso? 🤨`
+        `💸 Seu saldo é **${saldo}**.\nNão força não 🤨`
       );
     }
 
-    // 💰 DESCONTO
-    db.users[id] -= aposta;
+    // =============================
+    // 💸 REMOVE
+    // =============================
+    eco.removeMoney(id, aposta);
 
+    // =============================
+    // 🎬 ANIMAÇÃO
+    // =============================
+    const msg = await message.reply('🪙 Girando...');
+
+    const anim = ['🪙', '💿', '🔄', '🪙'];
+
+    for (let i = 0; i < anim.length; i++) {
+      await new Promise(r => setTimeout(r, 400));
+      await msg.edit(`🎲 ${anim[i]}`);
+    }
+
+    // =============================
     // 🎲 RESULTADO
-    const r1 = pegarSimbolo();
-    const r2 = pegarSimbolo();
-    const r3 = pegarSimbolo();
+    // =============================
+    const resultado = sortear();
+    const ganhou = resultado === escolha;
 
-    const resultado = [r1, r2, r3];
+    let ganho = 0;
 
-    const ganho = calcularGanho(r1, r2, r3, aposta);
+    if (ganhou) {
+      ganho = aposta * 2;
 
-    // 💵 ADICIONA GANHO
-    db.users[id] += ganho;
-
-    saveDB(db);
-
-    const embed = criarEmbed(resultado, aposta, ganho, db.users[id]);
-
-    const msg = await message.channel.send({
-      embeds: [embed],
-      components: criarBotoes(aposta)
-    });
-
-    const collector = msg.createMessageComponentCollector({ time: 60000 });
-
-    collector.on('collect', async (interaction) => {
-
-      if (interaction.user.id !== id) {
-        return interaction.reply({
-          content: '❌ Não é seu jogo.',
-          ephemeral: true
-        });
+      // bônus streak
+      const st = streaks.get(id);
+      if (st && st.win >= 3) {
+        ganho += Math.floor(aposta * 0.5);
       }
 
-      await interaction.deferUpdate();
+      eco.addMoney(id, ganho);
+    }
 
-      let novaAposta = aposta;
+    // =============================
+    // 📊 ATUALIZA
+    // =============================
+    addHistorico(id, resultado);
 
-      if (interaction.customId.startsWith('slot_double')) {
-        novaAposta = aposta * 2;
-      }
+    const streak = atualizarStreak(id, ganhou);
+    const hist = historico.get(id);
 
-      const db = getDB();
+    const saldoFinal = eco.getSaldo(id);
 
-      if (novaAposta > db.users[id]) {
-        return interaction.followUp({
-          content: `💸 Você só tem ${db.users[id]} moedas.`,
-          ephemeral: true
-        });
-      }
+    // =============================
+    // 🎨 RESULTADO
+    // =============================
+    const embed = criarEmbed(
+      message.author.username,
+      escolha,
+      resultado,
+      aposta,
+      ganho,
+      saldoFinal,
+      streak,
+      hist
+    );
 
-      db.users[id] -= novaAposta;
-
-      const r1 = pegarSimbolo();
-      const r2 = pegarSimbolo();
-      const r3 = pegarSimbolo();
-
-      const ganho = calcularGanho(r1, r2, r3, novaAposta);
-
-      db.users[id] += ganho;
-
-      saveDB(db);
-
-      const embed = criarEmbed([r1, r2, r3], novaAposta, ganho, db.users[id]);
-
-      await msg.edit({
-        embeds: [embed],
-        components: criarBotoes(novaAposta)
-      });
+    await msg.edit({
+      content: '',
+      embeds: [embed]
     });
 
   });
