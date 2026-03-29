@@ -12,7 +12,6 @@ function getDB() {
   }
 
   const data = JSON.parse(fs.readFileSync(DB_PATH));
-
   if (!data.users) data.users = {};
   if (!data.daily) data.daily = {};
 
@@ -34,7 +33,6 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    // 🔥 CRIA USUÁRIO SEM RESETAR
     if (db.users[id] === undefined) {
       db.users[id] = 10000;
       saveDB(db);
@@ -56,7 +54,6 @@ module.exports = (client) => {
 
       db.users[id] += 5000;
       db.daily[id] = agora;
-
       saveDB(db);
 
       return message.reply('🎁 Você ganhou 5000 moedas!');
@@ -89,7 +86,7 @@ module.exports = (client) => {
           new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('💰 RANKING DE RICOS — FROSTVOW')
-            .setDescription(texto || 'Ninguém ainda...')
+            .setDescription(texto || 'Ninguém no ranking ainda.')
             .addFields({
               name: '📍 Sua posição',
               value: pos !== -1
@@ -101,4 +98,5 @@ module.exports = (client) => {
     }
 
   });
+
 };
