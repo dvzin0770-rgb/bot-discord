@@ -1,4 +1,3 @@
-const fs = require('fs');
 const {
   EmbedBuilder,
   ActionRowBuilder,
@@ -6,39 +5,25 @@ const {
   ButtonStyle
 } = require('discord.js');
 
-const DB_PATH = './economia.json';
+const eco = require('./economia');
 
-// ==========================
-// 📁 BANCO
-// ==========================
-function getDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: {},
-      daily: {}
-    }, null, 2));
-  }
+// ==============================
+// 🧠 SISTEMA GLOBAL
+// ==============================
+const jogos = new Map();
 
-  const data = JSON.parse(fs.readFileSync(DB_PATH));
-
-  if (!data.users) data.users = {};
-
-  return data;
-}
-
-function saveDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
-
-// ==========================
-// 💣 GERAR GRID
-// ==========================
+// ==============================
+// 🎲 GERAR GRID
+// ==============================
 function gerarGrid(minas) {
-  const grid = Array(25).fill('💎'); // 5x5 INSANO
+
+  const grid = Array(16).fill('💎');
 
   let colocadas = 0;
+
   while (colocadas < minas) {
-    const i = Math.floor(Math.random() * 25);
+    const i = Math.floor(Math.random() * 16);
+
     if (grid[i] !== '💣') {
       grid[i] = '💣';
       colocadas++;
@@ -48,90 +33,93 @@ function gerarGrid(minas) {
   return grid;
 }
 
-// ==========================
-// 📈 MULTIPLICADOR REAL
-// ==========================
-function calcularMultiplicador(seguras, minas) {
-  const total = 25;
-  const chance = (total - minas) / total;
+// ==============================
+// 📈 MULTIPLICADOR
+// ==============================
+function calcMulti(revelados, minas) {
+  const base = 1 + (revelados * 0.35);
+  const risco = 1 + (minas * 0.25);
 
-  return (1 / chance) * (seguras * 0.25 + 1);
+  return base * risco;
 }
 
-// ==========================
+// ==============================
 // 🎨 EMBED
-// ==========================
-function criarEmbed(jogo, saldo) {
-  const ganho = Math.floor(jogo.aposta * jogo.multiplicador);
+// ==============================
+function criarEmbed(user, jogo, saldo) {
 
   return new EmbedBuilder()
-    .setTitle('💣 MINES INSANO — FROSTVOW')
+    .setColor('#0f172a')
+    .setTitle('💣 MINES ULTRA — FROSTVOW')
     .setDescription(
-      `💰 Aposta: ${jogo.aposta}\n` +
-      `💣 Minas: ${jogo.minas}\n` +
-      `📈 Mult: x${jogo.multiplicador.toFixed(2)}\n` +
-      `💎 Seguro: ${jogo.seguras}\n` +
-      `💵 Possível: ${ganho}\n` +
-      `💳 Saldo: ${saldo}`
+      `👤 ${user}\n\n` +
+      `💸 Aposta: **${jogo.aposta}**\n` +
+      `💣 Minas: **${jogo.minas}**\n` +
+      `📈 Multiplicador: **x${jogo.multi.toFixed(2)}**\n` +
+      `💰 Possível ganho: **${Math.floor(jogo.aposta * jogo.multi)}**\n\n` +
+      `🏦 Saldo: **${saldo}**`
     )
-    .setColor('#111827');
+    .setFooter({ text: 'Clique nos blocos ou saque antes de explodir.' });
 }
 
-// ==========================
+// ==============================
 // 🔘 BOTÕES GRID
-// ==========================
-function gerarBotoes(jogo) {
+// ==============================
+function criarBotoes(jogo, userId) {
+
   const rows = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
+
     const row = new ActionRowBuilder();
 
-    for (let j = 0; j < 5; j++) {
-      const index = i * 5 + j;
+    for (let j = 0; j < 4; j++) {
+
+      const index = i * 4 + j;
 
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`mine_${index}`)
+          .setCustomId(`mine_${userId}_${index}`)
           .setLabel(jogo.revelados[index] ? jogo.grid[index] : '⬛')
-          .setStyle(
-            jogo.revelados[index]
-              ? (jogo.grid[index] === '💣' ? ButtonStyle.Danger : ButtonStyle.Success)
-              : ButtonStyle.Secondary
-          )
+          .setStyle(jogo.revelados[index] ? ButtonStyle.Success : ButtonStyle.Secondary)
           .setDisabled(jogo.revelados[index] || !jogo.ativo)
       );
+
     }
 
     rows.push(row);
   }
 
+  // ==============================
   // CONTROLES
-  rows.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('sacar')
-        .setLabel('💰 Sacar')
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!jogo.ativo),
+  // ==============================
+  const controle = new ActionRowBuilder().addComponents(
 
-      new ButtonBuilder()
-        .setCustomId('replay')
-        .setLabel('🔁 Jogar de novo')
-        .setStyle(ButtonStyle.Primary)
-    )
+    new ButtonBuilder()
+      .setCustomId(`sacar_${userId}`)
+      .setLabel('💰 Sacar')
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(!jogo.ativo),
+
+    new ButtonBuilder()
+      .setCustomId(`replay_${userId}`)
+      .setLabel('🔁 Jogar Novamente')
+      .setStyle(ButtonStyle.Primary)
+
   );
+
+  rows.push(controle);
 
   return rows;
 }
 
-// ==========================
-// 💣 SISTEMA
-// ==========================
+// ==============================
+// 🎮 COMANDO
+// ==============================
 module.exports = (client) => {
 
-  const jogos = new Map();
-
   client.on('messageCreate', async (message) => {
+
     if (message.author.bot) return;
     if (!message.content.startsWith('!mines')) return;
 
@@ -140,108 +128,135 @@ module.exports = (client) => {
     const aposta = Number(args[2]);
     const id = message.author.id;
 
-    if (!minas || !aposta) {
-      return message.reply('❌ Use: !mines <minas> <aposta>');
+    // ==============================
+    // VALIDAÇÃO
+    // ==============================
+    if (!minas || minas < 1 || minas > 10) {
+      return message.reply('❌ Minas entre 1 e 10.');
     }
 
-    if (minas < 1 || minas > 10) {
-      return message.reply('❌ Minas: 1 até 10');
+    if (!aposta || aposta <= 0) {
+      return message.reply('❌ Aposta inválida.');
     }
 
-    const db = getDB();
+    const saldo = eco.getSaldo(id);
 
-    if (db.users[id] === undefined) db.users[id] = 10000;
-
-    if (aposta > db.users[id]) {
+    if (aposta > saldo) {
       return message.reply(
-        `💸 Saldo: ${db.users[id]}\nComo você vai apostar isso? 🤨`
+        `💸 Seu saldo é **${saldo}**.\nVai apostar o quê? 🤨`
       );
     }
 
-    db.users[id] -= aposta;
-    saveDB(db);
+    // ==============================
+    // INICIAR JOGO
+    // ==============================
+    eco.removeMoney(id, aposta);
 
     const jogo = {
       grid: gerarGrid(minas),
-      revelados: Array(25).fill(false),
+      revelados: Array(16).fill(false),
       minas,
       aposta,
-      multiplicador: 1,
-      seguras: 0,
-      ativo: true
+      multi: 1,
+      ativo: true,
+      cliques: 0
     };
 
     jogos.set(id, jogo);
 
     const msg = await message.channel.send({
-      embeds: [criarEmbed(jogo, db.users[id])],
-      components: gerarBotoes(jogo)
+      embeds: [criarEmbed(message.author.username, jogo, eco.getSaldo(id))],
+      components: criarBotoes(jogo, id)
     });
 
     const collector = msg.createMessageComponentCollector({ time: 300000 });
 
-    collector.on('collect', async (interaction) => {
+    // ==============================
+    // INTERAÇÃO
+    // ==============================
+    collector.on('collect', async (i) => {
 
-      if (interaction.user.id !== id) {
-        return interaction.reply({
-          content: '❌ Não é seu jogo.',
-          ephemeral: true
-        });
+      if (i.user.id !== id) {
+        return i.reply({ content: '❌ Não é seu jogo.', ephemeral: true });
       }
 
-      await interaction.deferUpdate();
+      await i.deferUpdate();
 
       const jogo = jogos.get(id);
       if (!jogo) return;
 
-      // 🔁 REPLAY
-      if (interaction.customId === 'replay') {
-        return message.channel.send(`🎮 Use novamente: !mines ${jogo.minas} ${jogo.aposta}`);
-      }
+      // ==============================
+      // SACAR
+      // ==============================
+      if (i.customId.startsWith('sacar')) {
 
-      if (!jogo.ativo) return;
+        if (!jogo.ativo) return;
 
-      // 💰 SACAR
-      if (interaction.customId === 'sacar') {
-        const ganho = Math.floor(jogo.aposta * jogo.multiplicador);
+        const ganho = Math.floor(jogo.aposta * jogo.multi);
 
-        const db = getDB();
-        db.users[id] += ganho;
-        saveDB(db);
+        eco.addMoney(id, ganho);
 
         jogo.ativo = false;
 
         return msg.edit({
-          content: `💰 Sacou ${ganho}!`,
+          content: `💰 Você sacou **${ganho} moedas!**`,
           embeds: [],
           components: []
         });
       }
 
-      const index = parseInt(interaction.customId.split('_')[1]);
+      // ==============================
+      // REPLAY
+      // ==============================
+      if (i.customId.startsWith('replay')) {
 
+        jogos.delete(id);
+
+        return msg.delete().catch(() => null);
+      }
+
+      // ==============================
+      // CLIQUE
+      // ==============================
+      const index = parseInt(i.customId.split('_')[2]);
+
+      if (jogo.revelados[index]) return;
+
+      jogo.revelados[index] = true;
+      jogo.cliques++;
+
+      // ==============================
+      // BOMBA
+      // ==============================
       if (jogo.grid[index] === '💣') {
+
         jogo.ativo = false;
         jogo.revelados = jogo.grid.map(() => true);
 
         return msg.edit({
-          content: '💣 BOOM! Você perdeu!',
-          embeds: [],
-          components: gerarBotoes(jogo)
+          content: '💣 BOOM! Você perdeu tudo!',
+          components: criarBotoes(jogo, id),
+          embeds: []
         });
       }
 
-      jogo.revelados[index] = true;
-      jogo.seguras++;
-
-      jogo.multiplicador = calcularMultiplicador(jogo.seguras, jogo.minas);
-
-      const db = getDB();
+      // ==============================
+      // SAFE
+      // ==============================
+      jogo.multi = calcMulti(jogo.cliques, jogo.minas);
 
       await msg.edit({
-        embeds: [criarEmbed(jogo, db.users[id])],
-        components: gerarBotoes(jogo)
+        embeds: [criarEmbed(message.author.username, jogo, eco.getSaldo(id))],
+        components: criarBotoes(jogo, id)
       });
+
+    });
+
+    // ==============================
+    // FIM
+    // ==============================
+    collector.on('end', () => {
+      jogos.delete(id);
     });
 
   });
