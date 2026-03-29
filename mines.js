@@ -59,7 +59,6 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    // 🔥 NOVO FORMATO
     if (!db[id]) db[id] = { dinheiro: 10000, lastDaily: 0 };
 
     if (db[id].dinheiro < aposta) {
@@ -82,7 +81,7 @@ module.exports = (client) => {
 
     jogos.set(id, jogo);
 
-    const gerarBotoes = () => {
+    const gerarBotoes = (revelarTudo = false) => {
       const rows = [];
 
       for (let i = 0; i < 4; i++) {
@@ -91,12 +90,21 @@ module.exports = (client) => {
         for (let j = 0; j < 4; j++) {
           const index = i * 4 + j;
 
+          const revelado = jogo.revelados[index] || revelarTudo;
+          const valor = jogo.grid[index];
+
           row.addComponents(
             new ButtonBuilder()
               .setCustomId(`mine_${index}`)
-              .setLabel(jogo.revelados[index] ? jogo.grid[index] : '⬜')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(jogo.revelados[index])
+              .setLabel(revelado ? valor : '⬜')
+              .setStyle(
+                !revelado
+                  ? ButtonStyle.Secondary
+                  : valor === '💣'
+                  ? ButtonStyle.Danger
+                  : ButtonStyle.Success
+              )
+              .setDisabled(revelado)
           );
         }
 
@@ -115,10 +123,21 @@ module.exports = (client) => {
       return rows;
     };
 
+    const saldoAtual = db[id].dinheiro;
+
     const embed = new EmbedBuilder()
-      .setTitle('💣 Mines')
-      .setDescription(`💰 Aposta: ${aposta}\n💣 Minas: ${minas}`)
-      .setColor('#2b2d31');
+      .setColor('#5865F2')
+      .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
+      .setTitle('💣・Mines — Frostvow')
+      .setDescription('Clique nos blocos e evite as bombas... boa sorte 👀')
+      .addFields(
+        { name: '💰 Aposta', value: `**${aposta} moedas**`, inline: true },
+        { name: '💣 Minas', value: `**${minas}**`, inline: true },
+        { name: '📈 Multiplicador', value: `**1.00x**`, inline: true },
+        { name: '🏦 Seu saldo', value: `**${saldoAtual} moedas**` }
+      )
+      .setFooter({ text: 'Frostvow • Sistema de Apostas' })
+      .setTimestamp();
 
     const msg = await message.channel.send({
       embeds: [embed],
@@ -160,9 +179,21 @@ module.exports = (client) => {
         jogo.ativo = false;
 
         return interaction.update({
-          content: '💣 Você explodiu!',
-          embeds: [],
-          components: []
+          content: '💥 **BOOM! Você explodiu!**',
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('💣・Mines — Game Over')
+              .setDescription('Você acertou uma bomba... melhor sorte na próxima 😭')
+              .addFields({
+                name: '💸 Perda',
+                value: `**-${aposta} moedas**`,
+                inline: true
+              })
+              .setFooter({ text: 'Frostvow Casino' })
+              .setTimestamp()
+          ],
+          components: gerarBotoes(true)
         });
       }
 
@@ -172,9 +203,17 @@ module.exports = (client) => {
       await interaction.update({
         embeds: [
           new EmbedBuilder()
-            .setTitle('💣 Mines')
-            .setDescription(`💰 Aposta: ${aposta}\n📈 Multiplicador: ${jogo.multiplicador.toFixed(2)}x`)
-            .setColor('#2b2d31')
+            .setColor('#5865F2')
+            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+            .setTitle('💣・Mines — Frostvow')
+            .setDescription('Você está avançando... não explode agora 😈')
+            .addFields(
+              { name: '💰 Aposta', value: `**${aposta} moedas**`, inline: true },
+              { name: '📈 Multiplicador', value: `**${jogo.multiplicador.toFixed(2)}x**`, inline: true },
+              { name: '💎 Ganho atual', value: `**${Math.floor(aposta * jogo.multiplicador)} moedas**`, inline: true }
+            )
+            .setFooter({ text: 'Clique com cuidado...' })
+            .setTimestamp()
         ],
         components: gerarBotoes()
       });
