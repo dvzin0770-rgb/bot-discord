@@ -1,40 +1,49 @@
 const fs = require('fs');
 const { EmbedBuilder } = require('discord.js');
 
-// ===============================
-// 📁 CONFIG
-// ===============================
+// =============================
+// 📁 CONFIGURAÇÕES
+// =============================
 const DB_PATH = './economia.json';
+const BACKUP_PATH = './economia_backup.json';
 const ADMIN_ID = '1374388082908069899';
 
-// ===============================
+// =============================
 // 🔒 CONTROLE DE ESCRITA
-// ===============================
+// =============================
 let salvando = false;
-let ultimoSave = 0;
+let fila = [];
 
-// ===============================
-// 🧠 INICIALIZAÇÃO SEGURA
-// ===============================
+// =============================
+// 🧠 GARANTIR ARQUIVO
+// =============================
 function garantirDB() {
+
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
+
+    const estrutura = {
       users: {},
       daily: {},
       meta: {
-        criadoEm: Date.now()
+        criadoEm: Date.now(),
+        versao: 1
       }
-    }, null, 2));
+    };
+
+    fs.writeFileSync(DB_PATH, JSON.stringify(estrutura, null, 2));
   }
+
 }
 
-// ===============================
-// 📖 LEITURA ULTRA SEGURA
-// ===============================
+// =============================
+// 📖 LER BANCO COM SEGURANÇA
+// =============================
 function lerDB() {
+
   garantirDB();
 
   try {
+
     const raw = fs.readFileSync(DB_PATH, 'utf-8');
 
     if (!raw || raw.trim() === '') {
@@ -49,74 +58,114 @@ function lerDB() {
     return data;
 
   } catch (err) {
+
     console.log('❌ ERRO AO LER DB:', err);
+
+    // tenta recuperar backup
+    if (fs.existsSync(BACKUP_PATH)) {
+      console.log('🔄 Restaurando backup...');
+      const backup = JSON.parse(fs.readFileSync(BACKUP_PATH));
+      fs.writeFileSync(DB_PATH, JSON.stringify(backup, null, 2));
+      return backup;
+    }
+
     return { users: {}, daily: {} };
   }
+
 }
 
-// ===============================
-// 💾 SAVE PROTEGIDO
-// ===============================
+// =============================
+// 💾 SALVAR COM FILA (ANTI BUG)
+// =============================
 function salvarDB(data) {
-  const agora = Date.now();
+
+  fila.push(data);
 
   if (salvando) return;
-  if (agora - ultimoSave < 500) return;
+
+  processarFila();
+}
+
+function processarFila() {
+
+  if (fila.length === 0) {
+    salvando = false;
+    return;
+  }
 
   salvando = true;
 
+  const data = fila.shift();
+
   try {
+
+    // backup antes de salvar
+    fs.writeFileSync(BACKUP_PATH, JSON.stringify(data, null, 2));
+
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-    ultimoSave = agora;
+
   } catch (err) {
     console.log('❌ ERRO AO SALVAR:', err);
   }
 
-  salvando = false;
+  setTimeout(processarFila, 50);
 }
 
-// ===============================
-// 👤 USUÁRIO
-// ===============================
+// =============================
+// 👤 GARANTIR USUÁRIO
+// =============================
 function garantirUser(db, id) {
+
   if (!db.users[id]) {
+
     db.users[id] = {
       saldo: 10000,
-      criadoEm: Date.now()
+      criadoEm: Date.now(),
+      totalGanho: 0,
+      totalPerdido: 0
     };
+
   }
+
 }
 
-// ===============================
-// 💰 PEGAR SALDO
-// ===============================
+// =============================
+// 💰 GET SALDO
+// =============================
 function getSaldo(id) {
+
   const db = lerDB();
   garantirUser(db, id);
+
   salvarDB(db);
+
   return db.users[id].saldo;
 }
 
-// ===============================
+// =============================
 // ➕ ADD MONEY
-// ===============================
+// =============================
 function addMoney(id, valor) {
+
   const db = lerDB();
   garantirUser(db, id);
 
   db.users[id].saldo += valor;
+  db.users[id].totalGanho += valor;
 
   salvarDB(db);
 }
 
-// ===============================
+// =============================
 // ➖ REMOVE MONEY
-// ===============================
+// =============================
 function removeMoney(id, valor) {
+
   const db = lerDB();
   garantirUser(db, id);
 
   db.users[id].saldo -= valor;
+  db.users[id].totalPerdido += valor;
 
   if (db.users[id].saldo < 0) {
     db.users[id].saldo = 0;
@@ -125,10 +174,11 @@ function removeMoney(id, valor) {
   salvarDB(db);
 }
 
-// ===============================
+// =============================
 // 🎯 SET MONEY
-// ===============================
+// =============================
 function setMoney(id, valor) {
+
   const db = lerDB();
   garantirUser(db, id);
 
@@ -137,10 +187,36 @@ function setMoney(id, valor) {
   salvarDB(db);
 }
 
-// ===============================
-// 🏆 TOP RICOS
-// ===============================
-async function gerarTop(client) {
+// =============================
+// 🎁 DAILY
+// =============================
+function daily(id) {
+
+  const db = lerDB();
+  garantirUser(db, id);
+
+  if (!db.daily) db.daily = {};
+
+  const agora = Date.now();
+  const ultimo = db.daily[id] || 0;
+
+  if (agora - ultimo < 86400000) {
+    return false;
+  }
+
+  db.users[id].saldo += 5000;
+  db.daily[id] = agora;
+
+  salvarDB(db);
+
+  return true;
+}
+
+// =============================
+// 🏆 RANKING
+// =============================
+async function gerarRanking(client) {
+
   const db = lerDB();
 
   const ranking = Object.entries(db.users)
@@ -150,7 +226,9 @@ async function gerarTop(client) {
   let texto = '';
 
   for (let i = 0; i < ranking.length; i++) {
+
     const user = await client.users.fetch(ranking[i][0]).catch(() => null);
+
     const nome = user ? user.username : 'Desconhecido';
 
     const medalha =
@@ -164,12 +242,13 @@ async function gerarTop(client) {
   return texto;
 }
 
-// ===============================
-// 🎮 SISTEMA DE COMANDOS
-// ===============================
+// =============================
+// 🎮 COMANDOS
+// =============================
 module.exports = (client) => {
 
   client.on('messageCreate', async (message) => {
+
     if (message.author.bot) return;
 
     const args = message.content.split(' ');
@@ -178,6 +257,7 @@ module.exports = (client) => {
 
     // ================= SALDO
     if (cmd === '!saldo') {
+
       const saldo = getSaldo(id);
 
       return message.reply({
@@ -185,12 +265,24 @@ module.exports = (client) => {
           new EmbedBuilder()
             .setColor('#22c55e')
             .setTitle('💰 SEU SALDO')
-            .setDescription(`Você possui **${saldo} moedas**`)
+            .setDescription(`Você tem **${saldo} moedas**`)
         ]
       });
     }
 
-    // ================= ADDMONEY (SÓ VOCÊ)
+    // ================= DAILY
+    if (cmd === '!daily') {
+
+      const ok = daily(id);
+
+      if (!ok) {
+        return message.reply('⏳ Você já pegou hoje!');
+      }
+
+      return message.reply('🎁 Você ganhou 5000 moedas!');
+    }
+
+    // ================= ADDMONEY
     if (cmd === '!addmoney') {
 
       if (id !== ADMIN_ID) {
@@ -206,28 +298,20 @@ module.exports = (client) => {
 
       addMoney(alvo.id, valor);
 
-      return message.reply(`💰 Adicionado ${valor} para ${alvo.username}`);
+      return message.reply(`💰 ${alvo.username} recebeu ${valor}`);
     }
 
-    // ================= TOP RICOS
+    // ================= TOP
     if (cmd === '!topricos') {
 
-      const texto = await gerarTop(client);
-
-      const pos = Object.entries(lerDB().users)
-        .sort((a, b) => b[1].saldo - a[1].saldo)
-        .findIndex(u => u[0] === id);
+      const texto = await gerarRanking(client);
 
       return message.channel.send({
         embeds: [
           new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🏆 RANKING DE RICOS')
+            .setTitle('🏆 TOP RICOS')
             .setDescription(texto)
-            .addFields({
-              name: '📍 Sua posição',
-              value: pos !== -1 ? `#${pos + 1}` : 'Fora do ranking'
-            })
         ]
       });
     }
@@ -235,3 +319,11 @@ module.exports = (client) => {
   });
 
 };
+
+// =============================
+// 📤 EXPORTS PRA OUTROS JOGOS
+// =============================
+module.exports.getSaldo = getSaldo;
+module.exports.addMoney = addMoney;
+module.exports.removeMoney = removeMoney;
+module.exports.setMoney = setMoney;
