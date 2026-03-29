@@ -11,10 +11,19 @@ const quiz = require('./quiz');
 const level = require('./level');
 const rankEventos = require('./rank-eventos');
 const boasVindas = require('./boas-vindas');
-const mines = require('./mines'); // 🔥 MINES
-const economiaCmds = require('./economia-cmds'); // 🔥 ECONOMIA
-const addMoney = require('./addmoney'); // 🔥 ADDMONEY
-const topRicos = require('./topricos'); // 🔥 TOP RICOS
+const mines = require('./mines');
+const economiaCmds = require('./economia-cmds');
+const addMoney = require('./addmoney');
+const topRicos = require('./topricos');
+
+// 🎮 MINIGAMES
+const slot = require('./slot');
+const coinflip = require('./coinflip');
+const roleta = require('./roleta');
+const duelo = require('./duelo');
+const boss = require('./boss');
+const blackjack = require('./blackjack');
+const guess = require('./guess');
 
 // ===== CLIENT =====
 const client = new Client({
@@ -46,10 +55,19 @@ quiz(client);
 level(client);
 rankEventos(client);
 boasVindas(client);
-mines(client); // 🔥 ATIVA MINES
-economiaCmds(client); // 🔥 ATIVA ECONOMIA
-addMoney(client); // 🔥 ATIVA ADDMONEY
-topRicos(client); // 🔥 ATIVA TOP RICOS
+mines(client);
+economiaCmds(client);
+addMoney(client);
+topRicos(client);
+
+// 🎮 ATIVAR MINIGAMES
+slot(client);
+coinflip(client);
+roleta(client);
+duelo(client);
+boss(client);
+blackjack(client);
+guess(client);
 
 // ===== READY =====
 client.once('ready', () => {
