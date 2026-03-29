@@ -4,16 +4,9 @@ const DB_PATH = './economia.json';
 
 function getDB() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: {},
-      daily: {}
-    }, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({ users: {}, daily: {} }, null, 2));
   }
-
-  const data = JSON.parse(fs.readFileSync(DB_PATH));
-  if (!data.users) data.users = {};
-
-  return data;
+  return JSON.parse(fs.readFileSync(DB_PATH));
 }
 
 function saveDB(data) {
@@ -21,47 +14,32 @@ function saveDB(data) {
 }
 
 module.exports = (client) => {
-
-  client.on('messageCreate', async (message) => {
+  client.on('messageCreate', (message) => {
     if (message.author.bot) return;
-
     if (!message.content.startsWith('!coinflip')) return;
 
     const args = message.content.split(' ');
     const aposta = parseInt(args[1]);
     const escolha = args[2];
 
-    if (!aposta || !escolha) {
-      return message.reply('❌ Use: !coinflip <valor> <cara/coroa>');
-    }
-
     const db = getDB();
     const id = message.author.id;
 
-    if (db.users[id] === undefined) {
-      db.users[id] = 10000;
-      saveDB(db);
-    }
+    if (db.users[id] === undefined) db.users[id] = 10000;
 
     if (db.users[id] < aposta) {
-      return message.reply('❌ Você não tem saldo suficiente.');
+      return message.reply(`Saldo: ${db.users[id]}`);
     }
 
     const resultado = Math.random() < 0.5 ? 'cara' : 'coroa';
 
-    if (escolha !== 'cara' && escolha !== 'coroa') {
-      return message.reply('❌ Escolha cara ou coroa.');
-    }
+    let ganhou = escolha === resultado;
 
-    if (resultado === escolha) {
-      db.users[id] += aposta;
-      saveDB(db);
-      return message.reply(`🪙 Deu **${resultado}**! Você ganhou ${aposta} moedas!`);
-    } else {
-      db.users[id] -= aposta;
-      saveDB(db);
-      return message.reply(`🪙 Deu **${resultado}**! Você perdeu ${aposta} moedas.`);
-    }
+    if (ganhou) db.users[id] += aposta;
+    else db.users[id] -= aposta;
+
+    saveDB(db);
+
+    message.reply(`Deu ${resultado} | ${ganhou ? 'GANHOU' : 'PERDEU'}`);
   });
-
 };
