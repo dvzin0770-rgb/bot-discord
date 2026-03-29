@@ -4,7 +4,7 @@ module.exports = (client) => {
 
   client.on('guildMemberAdd', async (member) => {
 
-    const canal = member.guild.channels.cache.find(c => c.name === 'geral'); // pode trocar se quiser
+    const canal = member.guild.channels.cache.get('1483173824835883073'); // ✅ CANAL CORRETO
 
     if (!canal) return;
 
