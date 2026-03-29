@@ -14,6 +14,7 @@ const boasVindas = require('./boas-vindas');
 const mines = require('./mines'); // 🔥 MINES
 const economiaCmds = require('./economia-cmds'); // 🔥 ECONOMIA
 const addMoney = require('./addmoney'); // 🔥 ADDMONEY
+const topRicos = require('./topricos'); // 🔥 TOP RICOS
 
 // ===== CLIENT =====
 const client = new Client({
@@ -48,6 +49,7 @@ boasVindas(client);
 mines(client); // 🔥 ATIVA MINES
 economiaCmds(client); // 🔥 ATIVA ECONOMIA
 addMoney(client); // 🔥 ATIVA ADDMONEY
+topRicos(client); // 🔥 ATIVA TOP RICOS
 
 // ===== READY =====
 client.once('ready', () => {
