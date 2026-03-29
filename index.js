@@ -13,6 +13,7 @@ const rankEventos = require('./rank-eventos');
 const boasVindas = require('./boas-vindas');
 const mines = require('./mines'); // 🔥 MINES
 const economiaCmds = require('./economia-cmds'); // 🔥 ECONOMIA
+const addMoney = require('./addmoney'); // 🔥 ADDMONEY
 
 // ===== CLIENT =====
 const client = new Client({
@@ -46,6 +47,7 @@ rankEventos(client);
 boasVindas(client);
 mines(client); // 🔥 ATIVA MINES
 economiaCmds(client); // 🔥 ATIVA ECONOMIA
+addMoney(client); // 🔥 ATIVA ADDMONEY
 
 // ===== READY =====
 client.once('ready', () => {
