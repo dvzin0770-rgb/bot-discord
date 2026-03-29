@@ -5,9 +5,18 @@ const DB_PATH = './economia.json';
 
 function getDB() {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({
+      users: {},
+      daily: {}
+    }, null, 2));
   }
-  return JSON.parse(fs.readFileSync(DB_PATH));
+
+  const data = JSON.parse(fs.readFileSync(DB_PATH));
+
+  if (!data.users) data.users = {};
+  if (!data.daily) data.daily = {};
+
+  return data;
 }
 
 function saveDB(data) {
@@ -25,17 +34,19 @@ module.exports = (client) => {
     const db = getDB();
     const id = message.author.id;
 
-    if (!db[id]) db[id] = 10000;
+    // 🔥 CRIA USUÁRIO SEM RESETAR
+    if (db.users[id] === undefined) {
+      db.users[id] = 10000;
+      saveDB(db);
+    }
 
     // 💰 SALDO
     if (cmd === '!saldo') {
-      return message.reply(`💰 Seu saldo: ${db[id]} moedas`);
+      return message.reply(`💰 Seu saldo: ${db.users[id]} moedas`);
     }
 
     // 🎁 DAILY
     if (cmd === '!daily') {
-      if (!db.daily) db.daily = {};
-
       const agora = Date.now();
       const ultimo = db.daily[id] || 0;
 
@@ -43,8 +54,9 @@ module.exports = (client) => {
         return message.reply('⏳ Você já coletou hoje!');
       }
 
-      db[id] += 5000;
+      db.users[id] += 5000;
       db.daily[id] = agora;
+
       saveDB(db);
 
       return message.reply('🎁 Você ganhou 5000 moedas!');
@@ -52,8 +64,7 @@ module.exports = (client) => {
 
     // 🏆 TOP RICOS
     if (cmd === '!topricos') {
-      const ranking = Object.entries(db)
-        .filter(([key]) => !isNaN(key))
+      const ranking = Object.entries(db.users)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
@@ -78,10 +89,12 @@ module.exports = (client) => {
           new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('💰 RANKING DE RICOS — FROSTVOW')
-            .setDescription(texto)
+            .setDescription(texto || 'Ninguém ainda...')
             .addFields({
               name: '📍 Sua posição',
-              value: pos !== -1 ? `#${pos + 1} com ${db[id]} moedas` : 'Fora do top'
+              value: pos !== -1
+                ? `#${pos + 1} com ${db.users[id]} moedas`
+                : `Fora do top (💰 ${db.users[id]})`
             })
         ]
       });
