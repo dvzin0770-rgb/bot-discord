@@ -71,7 +71,7 @@ module.exports = (client) => {
 
     const msg = await canal.send({ embeds: [embed], components: [row] });
 
-    const collector = msg.createMessageComponentCollector({ time: 900000 });
+    const collector = msg.createMessageComponentCollector({ time: 1800000 });
 
     let respondido = false;
 
