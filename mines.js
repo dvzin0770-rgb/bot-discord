@@ -42,14 +42,15 @@ module.exports = (client) => {
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    if (!message.content.startsWith('+mines')) return;
+    // 🔥 ALTERADO AQUI
+    if (!message.content.startsWith('!mines')) return;
 
     const args = message.content.split(' ');
     const minas = parseInt(args[1]);
     const aposta = parseInt(args[2]);
 
     if (!minas || !aposta) {
-      return message.reply('❌ Use: +mines <minas> <aposta>');
+      return message.reply('❌ Use: !mines <minas> <aposta>');
     }
 
     if (minas < 1 || minas > 5) {
