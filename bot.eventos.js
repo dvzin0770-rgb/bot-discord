@@ -1,197 +1,229 @@
 const {
-ActionRowBuilder,
-ButtonBuilder,
-ButtonStyle,
-StringSelectMenuBuilder,
-ChannelType,
-EmbedBuilder
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType
 } = require('discord.js');
 
-const fs = require('fs');
-const path = require('path');
-const DB_PATH = path.join(__dirname, 'banco-eventos.json');
-
-console.log("✅ bot.eventos.js carregado");
+const eco = require('./economia');
 
 module.exports = (client) => {
 
-const STAFF_ROLE_NAME = "Moderador Staff";
+// ================= CONFIG =================
 
-// ===== PAINEL =====
-client.on('messageCreate', async (message) => {
+const CANAL = '💬丨ɢᴇʀᴀʟ';
+const TEMPO_EVENTO = 15 * 60 * 1000;
+const INTERVALO = 20 * 60 * 1000;
 
-console.log("📩 MSG RECEBIDA:", message.content);  
+let ativo = false;
 
-if (message.author.bot) return;  
-if (!message.guild) return;  
+// ================= EVENTOS =================
 
-if (message.content.toLowerCase() !== '!painel') return;  
+const eventos = [
+  { nome: '💰 Tesouro', tipo: 'click', recompensa: 2000 },
+  { nome: '⚔️ Guerra Naval', tipo: 'boss', vida: 5000, recompensa: 8000 },
+  { nome: '🐉 Kraken', tipo: 'boss', vida: 8000, recompensa: 12000 },
+  { nome: '🏝 Ilha', tipo: 'multi', recompensa: 3000 }
+];
 
-const embed = new EmbedBuilder()  
-  .setColor('#2b2d31')  
-  .setTitle('📊 REGISTRO DE EVENTOS — FROSTVOW')  
-  .setDescription(`1️⃣ Selecione o evento
+// ================= HELPERS =================
 
-2️⃣ Envie a prova no tópico
-3️⃣ Aguarde aprovação da staff
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-📸 Prova obrigatória`);
+function criarThread(canal) {
+  return canal.threads.create({
+    name: `evento-${Date.now()}`,
+    type: ChannelType.PublicThread,
+    autoArchiveDuration: 60
+  });
+}
 
-const menu = new StringSelectMenuBuilder()  
-  .setCustomId('evento_menu')  
-  .setPlaceholder('Escolha o evento')  
-  .addOptions([  
-    { label: '🐉 Leviathan', value: 'leviathan_3' },  
-    { label: '🦈 Terror Shark', value: 'terror_1' },  
-    { label: '🌊 Sea Beast', value: 'seabeast_1' },  
-    { label: '🌋 Ilha do Vulcão', value: 'vulcao_2' },  
-    { label: '👻 Navio Fantasma', value: 'navio_1' },  
-    { label: '⚔️ Raids', value: 'raids_1' }  
-  ]);  
+// ================= EVENTO CLICK =================
 
-const row = new ActionRowBuilder().addComponents(menu);  
+async function eventoClick(thread, evento) {
 
-await message.channel.send({  
-  embeds: [embed],  
-  components: [row]  
-});  
+  const embed = new EmbedBuilder()
+    .setColor('#22c55e')
+    .setTitle(evento.nome)
+    .setDescription('Clique no botão para pegar!');
 
-console.log("✅ Painel enviado");
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('pegar')
+      .setLabel('PEGAR')
+      .setStyle(ButtonStyle.Success)
+  );
 
-});
+  const msg = await thread.send({ embeds: [embed], components: [row] });
 
-// ===== INTERAÇÕES =====
-client.on('interactionCreate', async (interaction) => {
+  const collector = msg.createMessageComponentCollector({ time: TEMPO_EVENTO });
 
-// ===== MENU =====  
-if (interaction.isStringSelectMenu()) {  
-  if (interaction.customId !== 'evento_menu') return;  
+  let ganhou = false;
 
-  const partes = interaction.values[0].split('_');  
-  const pontos = parseInt(partes[1]);  
+  collector.on('collect', async (i) => {
 
-  const membro = interaction.member;  
-  const canal = interaction.channel;  
+    if (ganhou) return i.reply({ content: 'Já foi!', ephemeral: true });
 
-  await interaction.deferReply({ ephemeral: true });  
+    ganhou = true;
 
-  const thread = await canal.threads.create({  
-    name: `evento-${membro.user.username}`,  
-    type: ChannelType.PrivateThread,  
-    invitable: false,  
-    autoArchiveDuration: 1440  
-  });  
+    eco.addMoney(i.user.id, evento.recompensa);
 
-  const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);  
+    await i.reply(`🏆 Você ganhou ${evento.recompensa}`);
 
-  await thread.members.add(membro.id);
+    msg.edit({ components: [] });
 
-// 🔥 PERMISSÃO
-setTimeout(async () => {
-  try {
-    await thread.permissionOverwrites.edit(membro.id, {
-      SendMessages: true,
-      ViewChannel: true,
-      ReadMessageHistory: true,
-      AttachFiles: true
-    });
-  } catch (err) {
-    console.log("Erro permissão:", err);
-  }
-}, 1200);
+    collector.stop();
+  });
 
-  if (staffRole) {  
-    for (const m of staffRole.members.values()) {  
-      await thread.members.add(m.id).catch(() => {});  
-    }  
-  }  
+}
 
-  await thread.setArchived(false);  
-  await thread.setLocked(false);  
+// ================= EVENTO BOSS =================
 
-  await thread.send({  
-    content: `🎈 ${membro}, envie sua prova aqui 📸`  
-  });  
+async function eventoBoss(thread, evento) {
 
-  const botoes = new ActionRowBuilder().addComponents(  
-    new ButtonBuilder()  
-      .setCustomId(`evento_aprovar_${membro.id}_${pontos}`)  
-      .setLabel('✅ Aprovar')  
-      .setStyle(ButtonStyle.Success),  
+  let vida = evento.vida;
 
-    new ButtonBuilder()  
-      .setCustomId(`evento_recusar_${membro.id}`)  
-      .setLabel('❌ Recusar')  
-      .setStyle(ButtonStyle.Danger)  
-  );  
+  const embed = new EmbedBuilder()
+    .setColor('#ef4444')
+    .setTitle(evento.nome)
+    .setDescription(`❤️ Vida: ${vida}`);
 
-  await thread.send({  
-    components: [botoes]  
-  });  
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('atacar')
+      .setLabel('ATACAR')
+      .setStyle(ButtonStyle.Danger)
+  );
 
-  await interaction.editReply({  
-    content: `✅ Evento criado: ${thread}`  
-  });  
-}  
+  const msg = await thread.send({ embeds: [embed], components: [row] });
 
-// ===== BOTÕES =====  
-if (interaction.isButton()) {  
+  const players = new Map();
 
-  if (  
-    !interaction.customId.startsWith('evento_aprovar') &&  
-    !interaction.customId.startsWith('evento_recusar')  
-  ) return;  
+  const collector = msg.createMessageComponentCollector({ time: TEMPO_EVENTO });
 
-  const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);  
+  collector.on('collect', async (i) => {
 
-  if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {  
-    return interaction.reply({  
-      content: '❌ Apenas staff pode usar isso.',  
-      ephemeral: true  
-    });  
-  }  
+    const dmg = Math.floor(Math.random() * 300) + 100;
 
-  const thread = interaction.channel;  
+    vida -= dmg;
 
-  // RECUSAR  
-  if (interaction.customId.startsWith('evento_recusar')) {  
-    await interaction.reply('❌ Evento recusado.');  
-    setTimeout(() => thread.delete().catch(() => {}), 2000);  
-  }  
+    players.set(i.user.id, (players.get(i.user.id) || 0) + dmg);
 
-  // ✅ APROVAR (SALVANDO CERTO)
-  if (interaction.customId.startsWith('evento_aprovar')) {
+    await i.reply({ content: `💥 ${dmg} de dano!`, ephemeral: true });
 
-    console.log("📁 Salvando em:", DB_PATH);
+    embed.setDescription(`❤️ Vida: ${vida}`);
+    msg.edit({ embeds: [embed] });
 
-    const partes = interaction.customId.split('_');
-    const userId = partes[2];
-    const pontos = parseInt(partes[3]);
+    if (vida <= 0) {
+      collector.stop();
 
-    let db = {};
+      let vencedor = null;
+      let maior = 0;
 
-    try {
-      if (fs.existsSync(DB_PATH)) {
-        const raw = fs.readFileSync(DB_PATH, 'utf8');
-        db = raw ? JSON.parse(raw) : {};
+      for (const [id, dano] of players) {
+        if (dano > maior) {
+          maior = dano;
+          vencedor = id;
+        }
       }
-    } catch (err) {
-      console.log("Erro lendo JSON, resetando:", err);
-      db = {};
+
+      if (vencedor) {
+        eco.addMoney(vencedor, evento.recompensa);
+        thread.send(`🏆 <@${vencedor}> deu mais dano e ganhou!`);
+      }
     }
 
-    if (!db[userId]) db[userId] = 0;
-    db[userId] += pontos;
+  });
 
-    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-
-    console.log("💾 Dados salvos:", db); // 👈 ESSA LINHA É A NOVA
-
-    await interaction.reply(`✅ Evento aprovado! (+${pontos} pontos)\n🏆 Total: ${db[userId]} pontos`);
-
-    setTimeout(() => thread.delete().catch(() => {}), 2000);
-  }  
 }
+
+// ================= EVENTO MULTI =================
+
+async function eventoMulti(thread, evento) {
+
+  const participantes = new Set();
+
+  const embed = new EmbedBuilder()
+    .setColor('#3b82f6')
+    .setTitle(evento.nome)
+    .setDescription('Digite **entrar**');
+
+  await thread.send({ embeds: [embed] });
+
+  const collector = thread.createMessageCollector({ time: TEMPO_EVENTO });
+
+  collector.on('collect', (msg) => {
+
+    if (msg.content === 'entrar') {
+      participantes.add(msg.author.id);
+    }
+
+  });
+
+  collector.on('end', () => {
+
+    participantes.forEach(id => {
+      eco.addMoney(id, evento.recompensa);
+      thread.send(`💰 <@${id}> ganhou ${evento.recompensa}`);
+    });
+
+  });
+
+}
+
+// ================= CONTROLADOR =================
+
+async function iniciarEvento(canal) {
+
+  if (ativo) return;
+
+  ativo = true;
+
+  const evento = rand(eventos);
+
+  let thread;
+
+  try {
+    thread = await criarThread(canal);
+  } catch (err) {
+    console.log(err);
+    ativo = false;
+    return;
+  }
+
+  if (evento.tipo === 'click') await eventoClick(thread, evento);
+  if (evento.tipo === 'boss') await eventoBoss(thread, evento);
+  if (evento.tipo === 'multi') await eventoMulti(thread, evento);
+
+  setTimeout(() => {
+    thread.delete().catch(()=>{});
+    ativo = false;
+  }, TEMPO_EVENTO + 5000);
+
+}
+
+// ================= LOOP =================
+
+function loop(canal) {
+  setInterval(() => {
+    iniciarEvento(canal);
+  }, INTERVALO);
+}
+
+// ================= READY =================
+
+client.once('ready', () => {
+
+  const guild = client.guilds.cache.first();
+  if (!guild) return;
+
+  const canal = guild.channels.cache.find(c => c.name === CANAL);
+  if (!canal) return console.log('Canal não encontrado');
+
+  loop(canal);
 
 });
 
