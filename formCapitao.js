@@ -1,5 +1,5 @@
 // ======================================================
-// 👑 FORM CAPITÃO ULTRA COMPLETO (300+ LINHAS REAIS)
+// 👑 FORM CAPITÃO ULTRA (300+ LINHAS REAIS)
 // ======================================================
 
 const {
@@ -22,95 +22,66 @@ module.exports = (client) => {
 // ======================================================
 
 const STAFF_ROLE = 'Moderador Staff';
-const CAPITAO_ROLE = '⃤⃟⃝ Capitão';
-const THREAD_PREFIX = 'capitao-';
+const CAP_ROLE = '⃤⃟⃝ Capitão';
+const PREFIX_THREAD = 'capitao-';
 const COOLDOWN = 5 * 60 * 1000;
 
 // ======================================================
-// 🧠 CACHE / CONTROLE
+// 🧠 CACHE
 // ======================================================
 
 const cache = new Map();
 const cooldown = new Map();
-const logs = [];
 
 // ======================================================
-// 🔧 FUNÇÕES AUXILIARES
+// 🔧 FUNÇÕES AUX
 // ======================================================
 
 function getRole(guild, name) {
   return guild.roles.cache.find(r => r.name === name);
 }
 
-function log(msg) {
-  console.log('[FORM]', msg);
-  logs.push(msg);
+function emCooldown(id) {
+  return cooldown.has(id) && Date.now() < cooldown.get(id);
 }
 
-function isOnCooldown(userId) {
-  if (!cooldown.has(userId)) return false;
-  return Date.now() < cooldown.get(userId);
+function setCooldown(id) {
+  cooldown.set(id, Date.now() + COOLDOWN);
 }
 
-function setCooldown(userId) {
-  cooldown.set(userId, Date.now() + COOLDOWN);
-}
-
-function formatarAplicacao(p1, p2) {
-  return "```\n" +
-    `Nome: ${p1.nome}\n` +
-    `Idade: ${p1.idade}\n` +
-    `Bounty: ${p1.bounty}\n` +
-    `Tempo: ${p1.tempo}\n` +
-    `Já foi capitão: ${p1.cap}\n\n` +
-    `Motivo: ${p2.motivo}\n` +
-    `Crew: ${p2.crew}\n` +
-    `Inativos: ${p2.inativos}\n` +
-    `Problemas: ${p2.problemas}\n` +
-    `Disponibilidade: ${p2.disp}\n` +
-  "```";
-}
-
-function criarEmbedPainel() {
+function criarPainel() {
   return new EmbedBuilder()
-    .setColor('#1e3a8a')
-    .setTitle('👑 CAPITÃO — FROSTVOW')
-    .setDescription('Clique abaixo para aplicar');
+    .setColor('#6366f1')
+    .setTitle('👑 RECRUTAMENTO — CAPITÃO FROSTVOW')
+    .setDescription(
+      '🔥 **Quer liderar a Frostvow?**\n\n' +
+      'Preencha o formulário completo.\n' +
+      'A staff irá analisar sua aplicação.\n\n' +
+      '⚠️ Responda tudo com atenção.'
+    )
+    .setFooter({ text: 'Sistema oficial Frostvow' });
 }
 
-function criarBotaoPainel() {
+function criarBotao() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('abrir_form')
-      .setLabel('👑 Aplicar')
+      .setCustomId('abrir_form_capitao')
+      .setLabel('👑 Aplicar para Capitão')
       .setStyle(ButtonStyle.Success)
   );
 }
 
 function criarBotoesStaff() {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('aprovar_cap').setLabel('Aprovar').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('recusar_cap').setLabel('Recusar').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder()
+      .setCustomId('aprovar_capitao')
+      .setLabel('✅ Aprovar')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('recusar_capitao')
+      .setLabel('❌ Recusar')
+      .setStyle(ButtonStyle.Danger)
   );
-}
-
-function criarEmbedAplicacao(user, p1, p2) {
-  return new EmbedBuilder()
-    .setColor('#22c55e')
-    .setTitle('📋 Aplicação')
-    .setDescription(`👤 <@${user.id}>`)
-    .addFields(
-      { name: 'Nome', value: p1.nome },
-      { name: 'Idade', value: p1.idade },
-      { name: 'Bounty', value: p1.bounty },
-      { name: 'Tempo', value: p1.tempo },
-      { name: 'Capitão antes', value: p1.cap },
-      { name: 'Motivo', value: p2.motivo },
-      { name: 'Crew', value: p2.crew },
-      { name: 'Inativos', value: p2.inativos },
-      { name: 'Problemas', value: p2.problemas },
-      { name: 'Disponibilidade', value: p2.disp }
-    );
 }
 
 // ======================================================
@@ -118,15 +89,18 @@ function criarEmbedAplicacao(user, p1, p2) {
 // ======================================================
 
 client.on('messageCreate', async (message) => {
+
   if (message.author.bot) return;
 
   if (message.content === '!formcapitao') {
-    log('Painel enviado');
+
     await message.channel.send({
-      embeds: [criarEmbedPainel()],
-      components: [criarBotaoPainel()]
+      embeds: [criarPainel()],
+      components: [criarBotao()]
     });
+
   }
+
 });
 
 // ======================================================
@@ -135,163 +109,198 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
 
-  // ================= BOTÕES =================
+  // ================= BOTÃO ABRIR =================
+  if (interaction.isButton() && interaction.customId === 'abrir_form_capitao') {
 
+    if (emCooldown(interaction.user.id)) {
+      return interaction.reply({ content: '⏳ Aguarde antes de aplicar novamente.', ephemeral: true });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId('form_parte1')
+      .setTitle('👑 Formulário (1/2)');
+
+    const campos = [
+      ['nome', 'Nome no jogo'],
+      ['idade', 'Idade'],
+      ['bounty', 'Bounty'],
+      ['tempo', 'Tempo jogando'],
+      ['cap', 'Já foi capitão?']
+    ];
+
+    for (const c of campos) {
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(c[0])
+            .setLabel(c[1])
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        )
+      );
+    }
+
+    return interaction.showModal(modal);
+  }
+
+  // ================= MODAL 1 =================
+  if (interaction.isModalSubmit() && interaction.customId === 'form_parte1') {
+
+    const dados = {
+      nome: interaction.fields.getTextInputValue('nome'),
+      idade: interaction.fields.getTextInputValue('idade'),
+      bounty: interaction.fields.getTextInputValue('bounty'),
+      tempo: interaction.fields.getTextInputValue('tempo'),
+      cap: interaction.fields.getTextInputValue('cap')
+    };
+
+    cache.set(interaction.user.id, dados);
+
+    const modal2 = new ModalBuilder()
+      .setCustomId('form_parte2')
+      .setTitle('👑 Formulário (2/2)');
+
+    const campos2 = [
+      ['motivo', 'Por que quer ser capitão?'],
+      ['crew', 'O que faria pela crew?'],
+      ['inativos', 'Como lidaria com inativos?'],
+      ['problemas', 'Já teve problemas com staff?'],
+      ['disp', 'Disponibilidade diária']
+    ];
+
+    for (const c of campos2) {
+      modal2.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(c[0])
+            .setLabel(c[1])
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        )
+      );
+    }
+
+    return interaction.showModal(modal2);
+  }
+
+  // ================= MODAL 2 =================
+  if (interaction.isModalSubmit() && interaction.customId === 'form_parte2') {
+
+    const p1 = cache.get(interaction.user.id);
+
+    if (!p1) {
+      return interaction.reply({ content: '❌ Erro interno.', ephemeral: true });
+    }
+
+    const p2 = {
+      motivo: interaction.fields.getTextInputValue('motivo'),
+      crew: interaction.fields.getTextInputValue('crew'),
+      inativos: interaction.fields.getTextInputValue('inativos'),
+      problemas: interaction.fields.getTextInputValue('problemas'),
+      disp: interaction.fields.getTextInputValue('disp')
+    };
+
+    const thread = await interaction.channel.threads.create({
+      name: `${PREFIX_THREAD}${interaction.user.id}`,
+      type: ChannelType.PrivateThread,
+      invitable: false
+    });
+
+    await thread.members.add(interaction.user.id);
+
+    const staffRole = getRole(interaction.guild, STAFF_ROLE);
+
+    if (staffRole) {
+      for (const m of staffRole.members.values()) {
+        await thread.members.add(m.id).catch(() => {});
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#22c55e')
+      .setTitle('📋 Aplicação de Capitão')
+      .setDescription(`👤 <@${interaction.user.id}>`)
+      .addFields(
+        { name: 'Nome', value: p1.nome },
+        { name: 'Idade', value: p1.idade },
+        { name: 'Bounty', value: p1.bounty },
+        { name: 'Tempo', value: p1.tempo },
+        { name: 'Já foi capitão', value: p1.cap },
+        { name: 'Motivo', value: p2.motivo },
+        { name: 'Crew', value: p2.crew },
+        { name: 'Inativos', value: p2.inativos },
+        { name: 'Problemas', value: p2.problemas },
+        { name: 'Disponibilidade', value: p2.disp }
+      );
+
+    await thread.send({
+      embeds: [embed],
+      components: [criarBotoesStaff()]
+    });
+
+    cache.delete(interaction.user.id);
+    setCooldown(interaction.user.id);
+
+    await interaction.reply({
+      content: '✅ Aplicação enviada!',
+      ephemeral: true
+    });
+
+  }
+
+  // ================= STAFF =================
   if (interaction.isButton()) {
 
-    if (interaction.customId === 'abrir_form') {
+    if (!['aprovar_capitao', 'recusar_capitao'].includes(interaction.customId)) return;
 
-      if (isOnCooldown(interaction.user.id)) {
-        return interaction.reply({ content: '⏳ Aguarde.', ephemeral: true });
-      }
+    await interaction.deferReply({ ephemeral: true });
 
-      const modal = new ModalBuilder()
-        .setCustomId('form1')
-        .setTitle('Capitão 1/2');
+    const staffRole = getRole(interaction.guild, STAFF_ROLE);
 
-      const campos = ['nome','idade','bounty','tempo','cap'];
-      const labels = ['Nome','Idade','Bounty','Tempo','Já foi capitão?'];
-
-      for (let i = 0; i < campos.length; i++) {
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId(campos[i])
-              .setLabel(labels[i])
-              .setStyle(TextInputStyle.Short)
-          )
-        );
-      }
-
-      return interaction.showModal(modal);
+    if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
+      return interaction.editReply('❌ Apenas staff.');
     }
 
-    if (interaction.customId === 'aprovar_cap' || interaction.customId === 'recusar_cap') {
+    const thread = interaction.channel;
+    const userId = thread.name.replace(PREFIX_THREAD, '');
 
-      await interaction.deferReply({ ephemeral: true });
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
+    const capRole = getRole(interaction.guild, CAP_ROLE);
 
-      const staff = getRole(interaction.guild, STAFF_ROLE);
-      if (!staff || !interaction.member.roles.cache.has(staff.id)) {
-        return interaction.editReply('❌ Apenas staff');
+    if (interaction.customId === 'aprovar_capitao') {
+
+      if (member && capRole) {
+        await member.roles.add(capRole).catch(() => {});
       }
 
-      const thread = interaction.channel;
-      const userId = thread.name.replace(THREAD_PREFIX, '');
-      const member = await interaction.guild.members.fetch(userId).catch(()=>null);
-      const capRole = getRole(interaction.guild, CAPITAO_ROLE);
+      eco.addMoney(userId, 5000);
 
-      if (interaction.customId === 'aprovar_cap') {
-
-        if (member && capRole) {
-          await member.roles.add(capRole).catch(()=>{});
-        }
-
-        eco.addMoney(userId, 5000);
-
-        if (member) member.send('✅ Você virou Capitão!').catch(()=>{});
-
-        await interaction.editReply('Aprovado');
-
-        setTimeout(()=>thread.delete().catch(()=>{}),3000);
+      if (member) {
+        await member.send('✅ Você foi aprovado como Capitão!').catch(()=>{});
       }
 
-      if (interaction.customId === 'recusar_cap') {
+      await interaction.editReply('✅ Aprovado.');
 
-        eco.removeMoney(userId, 1000);
-
-        if (member) member.send('❌ Recusado').catch(()=>{});
-
-        await interaction.editReply('Recusado');
-
-        setTimeout(()=>thread.delete().catch(()=>{}),3000);
-      }
     }
+
+    if (interaction.customId === 'recusar_capitao') {
+
+      eco.removeMoney(userId, 1000);
+
+      if (member) {
+        await member.send('❌ Sua aplicação foi recusada.').catch(()=>{});
+      }
+
+      await interaction.editReply('❌ Recusado.');
+
+    }
+
+    setTimeout(() => {
+      thread.delete().catch(()=>{});
+    }, 4000);
+
   }
 
-  // ================= MODAIS =================
-
-  if (interaction.isModalSubmit()) {
-
-    if (interaction.customId === 'form1') {
-
-      const dados = {
-        nome: interaction.fields.getTextInputValue('nome'),
-        idade: interaction.fields.getTextInputValue('idade'),
-        bounty: interaction.fields.getTextInputValue('bounty'),
-        tempo: interaction.fields.getTextInputValue('tempo'),
-        cap: interaction.fields.getTextInputValue('cap')
-      };
-
-      cache.set(interaction.user.id, dados);
-
-      const modal2 = new ModalBuilder()
-        .setCustomId('form2')
-        .setTitle('Capitão 2/2');
-
-      const campos2 = ['motivo','crew','inativos','problemas','disp'];
-      const labels2 = [
-        'Por que quer ser capitão?',
-        'O que faria pela crew?',
-        'Como lidaria com inativos?',
-        'Já teve problemas?',
-        'Disponibilidade'
-      ];
-
-      for (let i = 0; i < campos2.length; i++) {
-        modal2.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId(campos2[i])
-              .setLabel(labels2[i])
-              .setStyle(TextInputStyle.Paragraph)
-          )
-        );
-      }
-
-      return interaction.showModal(modal2);
-    }
-
-    if (interaction.customId === 'form2') {
-
-      const p1 = cache.get(interaction.user.id);
-      if (!p1) return interaction.reply({ content: 'Erro', ephemeral: true });
-
-      const p2 = {
-        motivo: interaction.fields.getTextInputValue('motivo'),
-        crew: interaction.fields.getTextInputValue('crew'),
-        inativos: interaction.fields.getTextInputValue('inativos'),
-        problemas: interaction.fields.getTextInputValue('problemas'),
-        disp: interaction.fields.getTextInputValue('disp')
-      };
-
-      const thread = await interaction.channel.threads.create({
-        name: `${THREAD_PREFIX}${interaction.user.id}`,
-        type: ChannelType.PrivateThread,
-        invitable: false
-      });
-
-      await thread.members.add(interaction.user.id);
-
-      const staff = getRole(interaction.guild, STAFF_ROLE);
-      if (staff) {
-        for (const m of staff.members.values()) {
-          await thread.members.add(m.id).catch(()=>{});
-        }
-      }
-
-      const embed = criarEmbedAplicacao(interaction.user, p1, p2);
-      const textoCopiavel = formatarAplicacao(p1, p2);
-
-      await thread.send({ embeds: [embed], components: [criarBotoesStaff()] });
-      await thread.send({ content: textoCopiavel });
-
-      cache.delete(interaction.user.id);
-      setCooldown(interaction.user.id);
-
-      await interaction.reply({ content: '✅ Enviado!', ephemeral: true });
-    }
-  }
 });
 
 };
-    
