@@ -25,6 +25,9 @@ const boss = require('./boss');
 const blackjack = require('./blackjack');
 const guess = require('./guess');
 
+// 👑 FORMULÁRIO CAPITÃO (ADICIONADO)
+const formCapitao = require('./formCapitao');
+
 // ===== CLIENT =====
 const client = new Client({
   intents: [
@@ -68,6 +71,9 @@ duelo(client);
 boss(client);
 blackjack(client);
 guess(client);
+
+// 👑 ATIVAR FORMULÁRIO CAPITÃO (ADICIONADO)
+formCapitao(client);
 
 // ===== READY =====
 client.once('ready', () => {
