@@ -16,9 +16,7 @@ if (message.content.toLowerCase() === '!formcapitao') {
     .setColor('#6366f1')
     .setTitle('👑 RECRUTAMENTO — CAPITÃO FROSTVOW')
     .setDescription(
-      'Quer se tornar Capitão?\n\n' +
-      'Clique no botão abaixo e preencha o formulário completo.\n' +
-      'Após isso, continue na thread privada.'
+      'Clique no botão abaixo para iniciar o formulário.'
     );
 
   const row = new ActionRowBuilder().addComponents(
@@ -35,9 +33,6 @@ if (message.content.toLowerCase() === '!formcapitao') {
 
 // ============================== // 🔘 INTERAÇÕES // ============================== client.on('interactionCreate', async (interaction) => {
 
-// ==============================
-// ABRIR MODAL
-// ==============================
 if (interaction.isButton()) {
 
   if (interaction.customId === 'abrir_form_capitao') {
@@ -47,40 +42,20 @@ if (interaction.isButton()) {
       .setTitle('Formulário Capitão');
 
     modal.addComponents(
-
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('nome')
-          .setLabel('Nome no jogo')
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
       ),
-
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('idade')
-          .setLabel('Idade')
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId('idade').setLabel('Idade').setStyle(TextInputStyle.Short)
       ),
-
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('bounty')
-          .setLabel('Bounty')
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId('bounty').setLabel('Bounty').setStyle(TextInputStyle.Short)
       ),
-
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('tempo')
-          .setLabel('Tempo jogando')
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId('tempo').setLabel('Tempo jogando').setStyle(TextInputStyle.Short)
       ),
-
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('capitao')
-          .setLabel('Já foi capitão antes?')
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId('capitao').setLabel('Já foi capitão?').setStyle(TextInputStyle.Short)
       )
     );
 
@@ -101,35 +76,26 @@ if (interaction.isButton()) {
 
     const thread = interaction.channel;
 
-    // ==============================
-    // APROVAR
-    // ==============================
-    if (interaction.customId === 'aprovar_cap') {
+    // pegar user salvo corretamente
+    const userId = thread.ownerId || interaction.user.id;
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
 
-      const userId = thread.name.split(THREAD_PREFIX)[1];
-      const member = interaction.guild.members.cache.find(m => m.user.username === userId);
+    if (interaction.customId === 'aprovar_cap') {
 
       if (member && capRole) {
         await member.roles.add(capRole).catch(() => {});
       }
 
-      await interaction.reply('✅ Aplicação aprovada! Cargo concedido.');
+      await interaction.reply('✅ Aprovado e cargo entregue!');
 
-      setTimeout(() => {
-        thread.delete().catch(() => {});
-      }, 3000);
+      setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
 
-    // ==============================
-    // RECUSAR
-    // ==============================
     if (interaction.customId === 'recusar_cap') {
 
-      await interaction.reply('❌ Aplicação recusada.');
+      await interaction.reply('❌ Recusado.');
 
-      setTimeout(() => {
-        thread.delete().catch(() => {});
-      }, 3000);
+      setTimeout(() => thread.delete().catch(() => {}), 3000);
     }
 
   }
@@ -137,7 +103,7 @@ if (interaction.isButton()) {
 }
 
 // ==============================
-// 📥 MODAL
+// MODAL
 // ==============================
 if (interaction.isModalSubmit()) {
 
@@ -173,16 +139,16 @@ if (interaction.isModalSubmit()) {
       respostas: {}
     });
 
-    await thread.send(`👋 ${interaction.user}\n\nPergunta 1:\nPor que quer ser capitão?`);
+    await thread.send(`Pergunta 1: Por que quer ser capitão?`);
 
-    await interaction.reply({ content: '📩 Continue na thread!', ephemeral: true });
+    await interaction.reply({ content: 'Responda na thread!', ephemeral: true });
   }
 
 }
 
 });
 
-// ============================== // 📨 CONTINUAÇÃO // ============================== client.on('messageCreate', async (message) => {
+// ============================== // CONTINUAÇÃO // ============================== client.on('messageCreate', async (message) => {
 
 if (message.author.bot) return;
 
@@ -194,25 +160,25 @@ if (!message.channel.isThread()) return;
 if (data.etapa === 1) {
   data.respostas.motivo = message.content;
   data.etapa = 2;
-  return message.reply('Pergunta 2:\nO que faria pela crew?');
+  return message.reply('Pergunta 2: O que faria pela crew?');
 }
 
 if (data.etapa === 2) {
   data.respostas.crew = message.content;
   data.etapa = 3;
-  return message.reply('Pergunta 3:\nComo lidaria com inativos?');
+  return message.reply('Pergunta 3: Como lidaria com inativos?');
 }
 
 if (data.etapa === 3) {
   data.respostas.inativos = message.content;
   data.etapa = 4;
-  return message.reply('Pergunta 4:\nJá teve problemas com staff?');
+  return message.reply('Pergunta 4: Já teve problemas com staff?');
 }
 
 if (data.etapa === 4) {
   data.respostas.problemas = message.content;
   data.etapa = 5;
-  return message.reply('Pergunta 5:\nDisponibilidade diária?');
+  return message.reply('Pergunta 5: Disponibilidade diária?');
 }
 
 if (data.etapa === 5) {
@@ -220,8 +186,7 @@ if (data.etapa === 5) {
 
   const embed = new EmbedBuilder()
     .setColor('#22c55e')
-    .setTitle('📋 APLICAÇÃO COMPLETA — CAPITÃO')
-    .setDescription(`👤 ${message.author}`)
+    .setTitle('Aplicação Capitão')
     .addFields(
       { name: 'Nome', value: data.nome },
       { name: 'Idade', value: data.idade },
@@ -236,21 +201,15 @@ if (data.etapa === 5) {
     );
 
   const botoes = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('aprovar_cap')
-      .setLabel('Aprovar')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('recusar_cap')
-      .setLabel('Recusar')
-      .setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('aprovar_cap').setLabel('Aprovar').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('recusar_cap').setLabel('Recusar').setStyle(ButtonStyle.Danger)
   );
 
   await message.channel.send({ embeds: [embed], components: [botoes] });
 
   formularios.delete(message.author.id);
 
-  return message.reply('✅ Formulário finalizado!');
+  return message.reply('Finalizado!');
 }
 
 });
