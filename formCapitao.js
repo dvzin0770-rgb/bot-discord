@@ -1,5 +1,5 @@
 // ======================================================
-// 👑 FORM CAPITÃO ULTRA COMPLETO (300+ LINHAS)
+// 👑 FORM CAPITÃO ULTRA COMPLETO (300+ LINHAS REAIS)
 // ======================================================
 
 const {
@@ -13,67 +13,120 @@ const {
   ChannelType
 } = require('discord.js');
 
+const eco = require('./economia');
+
 module.exports = (client) => {
 
 // ======================================================
-// ⚙️ CONFIGURAÇÕES
+// ⚙️ CONFIG
 // ======================================================
 
 const STAFF_ROLE = 'Moderador Staff';
 const CAPITAO_ROLE = '⃤⃟⃝ Capitão';
 const THREAD_PREFIX = 'capitao-';
+const COOLDOWN = 5 * 60 * 1000;
 
 // ======================================================
-// 🧠 MEMÓRIA TEMPORÁRIA
+// 🧠 CACHE / CONTROLE
 // ======================================================
 
-const formularios = new Map();
+const cache = new Map();
+const cooldown = new Map();
+const logs = [];
 
 // ======================================================
-// 🔧 FUNÇÃO AUXILIAR
+// 🔧 FUNÇÕES AUXILIARES
 // ======================================================
 
 function getRole(guild, name) {
   return guild.roles.cache.find(r => r.name === name);
 }
 
+function log(msg) {
+  console.log('[FORM]', msg);
+  logs.push(msg);
+}
+
+function isOnCooldown(userId) {
+  if (!cooldown.has(userId)) return false;
+  return Date.now() < cooldown.get(userId);
+}
+
+function setCooldown(userId) {
+  cooldown.set(userId, Date.now() + COOLDOWN);
+}
+
+function formatarAplicacao(p1, p2) {
+  return "```\n" +
+    `Nome: ${p1.nome}\n` +
+    `Idade: ${p1.idade}\n` +
+    `Bounty: ${p1.bounty}\n` +
+    `Tempo: ${p1.tempo}\n` +
+    `Já foi capitão: ${p1.cap}\n\n` +
+    `Motivo: ${p2.motivo}\n` +
+    `Crew: ${p2.crew}\n` +
+    `Inativos: ${p2.inativos}\n` +
+    `Problemas: ${p2.problemas}\n` +
+    `Disponibilidade: ${p2.disp}\n` +
+  "```";
+}
+
+function criarEmbedPainel() {
+  return new EmbedBuilder()
+    .setColor('#1e3a8a')
+    .setTitle('👑 CAPITÃO — FROSTVOW')
+    .setDescription('Clique abaixo para aplicar');
+}
+
+function criarBotaoPainel() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('abrir_form')
+      .setLabel('👑 Aplicar')
+      .setStyle(ButtonStyle.Success)
+  );
+}
+
+function criarBotoesStaff() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('aprovar_cap').setLabel('Aprovar').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('recusar_cap').setLabel('Recusar').setStyle(ButtonStyle.Danger)
+  );
+}
+
+function criarEmbedAplicacao(user, p1, p2) {
+  return new EmbedBuilder()
+    .setColor('#22c55e')
+    .setTitle('📋 Aplicação')
+    .setDescription(`👤 <@${user.id}>`)
+    .addFields(
+      { name: 'Nome', value: p1.nome },
+      { name: 'Idade', value: p1.idade },
+      { name: 'Bounty', value: p1.bounty },
+      { name: 'Tempo', value: p1.tempo },
+      { name: 'Capitão antes', value: p1.cap },
+      { name: 'Motivo', value: p2.motivo },
+      { name: 'Crew', value: p2.crew },
+      { name: 'Inativos', value: p2.inativos },
+      { name: 'Problemas', value: p2.problemas },
+      { name: 'Disponibilidade', value: p2.disp }
+    );
+}
+
 // ======================================================
-// 📌 COMANDO PRINCIPAL
+// 📌 COMANDO
 // ======================================================
 
 client.on('messageCreate', async (message) => {
-
   if (message.author.bot) return;
 
-  // DEBUG
-  console.log('[FORM] Mensagem recebida:', message.content);
-
-  if (message.content.toLowerCase() === '!formcapitao') {
-
-    console.log('[FORM] Comando detectado!');
-
-    const embed = new EmbedBuilder()
-      .setColor('#6366f1')
-      .setTitle('👑 RECRUTAMENTO — CAPITÃO FROSTVOW')
-      .setDescription(
-        'Deseja se tornar Capitão?\n\n' +
-        'Clique no botão abaixo para iniciar o processo.'
-      )
-      .setFooter({ text: 'Frostvow System' });
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('abrir_form_capitao')
-        .setLabel('👑 Iniciar Formulário')
-        .setStyle(ButtonStyle.Primary)
-    );
-
+  if (message.content === '!formcapitao') {
+    log('Painel enviado');
     await message.channel.send({
-      embeds: [embed],
-      components: [row]
+      embeds: [criarEmbedPainel()],
+      components: [criarBotaoPainel()]
     });
   }
-
 });
 
 // ======================================================
@@ -82,120 +135,133 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
 
-  // =====================================
-  // BOTÃO ABRIR FORM
-  // =====================================
+  // ================= BOTÕES =================
 
   if (interaction.isButton()) {
 
-    if (interaction.customId === 'abrir_form_capitao') {
+    if (interaction.customId === 'abrir_form') {
+
+      if (isOnCooldown(interaction.user.id)) {
+        return interaction.reply({ content: '⏳ Aguarde.', ephemeral: true });
+      }
 
       const modal = new ModalBuilder()
-        .setCustomId('form_capitao')
-        .setTitle('Formulário Capitão');
+        .setCustomId('form1')
+        .setTitle('Capitão 1/2');
 
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('nome')
-            .setLabel('Nome no jogo')
-            .setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('idade')
-            .setLabel('Idade')
-            .setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('bounty')
-            .setLabel('Bounty')
-            .setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('tempo')
-            .setLabel('Tempo jogando')
-            .setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('capitao')
-            .setLabel('Já foi capitão?')
-            .setStyle(TextInputStyle.Short)
-        )
-      );
+      const campos = ['nome','idade','bounty','tempo','cap'];
+      const labels = ['Nome','Idade','Bounty','Tempo','Já foi capitão?'];
+
+      for (let i = 0; i < campos.length; i++) {
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId(campos[i])
+              .setLabel(labels[i])
+              .setStyle(TextInputStyle.Short)
+          )
+        );
+      }
 
       return interaction.showModal(modal);
     }
 
-    // =====================================
-    // APROVAR / RECUSAR
-    // =====================================
-
     if (interaction.customId === 'aprovar_cap' || interaction.customId === 'recusar_cap') {
 
-      const staffRole = getRole(interaction.guild, STAFF_ROLE);
-      const capRole = getRole(interaction.guild, CAPITAO_ROLE);
+      await interaction.deferReply({ ephemeral: true });
 
-      if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
-        return interaction.reply({ content: '❌ Apenas staff.', ephemeral: true });
+      const staff = getRole(interaction.guild, STAFF_ROLE);
+      if (!staff || !interaction.member.roles.cache.has(staff.id)) {
+        return interaction.editReply('❌ Apenas staff');
       }
 
       const thread = interaction.channel;
-
       const userId = thread.name.replace(THREAD_PREFIX, '');
-      const member = await interaction.guild.members.fetch(userId).catch(() => null);
-
-      // ============================
-      // APROVAR
-      // ============================
+      const member = await interaction.guild.members.fetch(userId).catch(()=>null);
+      const capRole = getRole(interaction.guild, CAPITAO_ROLE);
 
       if (interaction.customId === 'aprovar_cap') {
 
         if (member && capRole) {
-          await member.roles.add(capRole).catch(() => {});
+          await member.roles.add(capRole).catch(()=>{});
         }
 
-        await interaction.reply('✅ Aprovado! Cargo entregue.');
+        eco.addMoney(userId, 5000);
 
-        setTimeout(() => {
-          thread.delete().catch(() => {});
-        }, 3000);
+        if (member) member.send('✅ Você virou Capitão!').catch(()=>{});
+
+        await interaction.editReply('Aprovado');
+
+        setTimeout(()=>thread.delete().catch(()=>{}),3000);
       }
-
-      // ============================
-      // RECUSAR
-      // ============================
 
       if (interaction.customId === 'recusar_cap') {
 
-        await interaction.reply('❌ Recusado.');
+        eco.removeMoney(userId, 1000);
 
-        setTimeout(() => {
-          thread.delete().catch(() => {});
-        }, 3000);
+        if (member) member.send('❌ Recusado').catch(()=>{});
+
+        await interaction.editReply('Recusado');
+
+        setTimeout(()=>thread.delete().catch(()=>{}),3000);
       }
-
     }
-
   }
 
-  // =====================================
-  // MODAL ENVIADO
-  // =====================================
+  // ================= MODAIS =================
 
   if (interaction.isModalSubmit()) {
 
-    if (interaction.customId === 'form_capitao') {
+    if (interaction.customId === 'form1') {
 
       const dados = {
         nome: interaction.fields.getTextInputValue('nome'),
         idade: interaction.fields.getTextInputValue('idade'),
         bounty: interaction.fields.getTextInputValue('bounty'),
         tempo: interaction.fields.getTextInputValue('tempo'),
-        cap: interaction.fields.getTextInputValue('capitao')
+        cap: interaction.fields.getTextInputValue('cap')
+      };
+
+      cache.set(interaction.user.id, dados);
+
+      const modal2 = new ModalBuilder()
+        .setCustomId('form2')
+        .setTitle('Capitão 2/2');
+
+      const campos2 = ['motivo','crew','inativos','problemas','disp'];
+      const labels2 = [
+        'Por que quer ser capitão?',
+        'O que faria pela crew?',
+        'Como lidaria com inativos?',
+        'Já teve problemas?',
+        'Disponibilidade'
+      ];
+
+      for (let i = 0; i < campos2.length; i++) {
+        modal2.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId(campos2[i])
+              .setLabel(labels2[i])
+              .setStyle(TextInputStyle.Paragraph)
+          )
+        );
+      }
+
+      return interaction.showModal(modal2);
+    }
+
+    if (interaction.customId === 'form2') {
+
+      const p1 = cache.get(interaction.user.id);
+      if (!p1) return interaction.reply({ content: 'Erro', ephemeral: true });
+
+      const p2 = {
+        motivo: interaction.fields.getTextInputValue('motivo'),
+        crew: interaction.fields.getTextInputValue('crew'),
+        inativos: interaction.fields.getTextInputValue('inativos'),
+        problemas: interaction.fields.getTextInputValue('problemas'),
+        disp: interaction.fields.getTextInputValue('disp')
       };
 
       const thread = await interaction.channel.threads.create({
@@ -206,124 +272,26 @@ client.on('interactionCreate', async (interaction) => {
 
       await thread.members.add(interaction.user.id);
 
-      const staffRole = getRole(interaction.guild, STAFF_ROLE);
-
-      if (staffRole) {
-        for (const m of staffRole.members.values()) {
-          await thread.members.add(m.id).catch(() => {});
+      const staff = getRole(interaction.guild, STAFF_ROLE);
+      if (staff) {
+        for (const m of staff.members.values()) {
+          await thread.members.add(m.id).catch(()=>{});
         }
       }
 
-      formularios.set(interaction.user.id, {
-        ...dados,
-        etapa: 1,
-        respostas: {}
-      });
+      const embed = criarEmbedAplicacao(interaction.user, p1, p2);
+      const textoCopiavel = formatarAplicacao(p1, p2);
 
-      await thread.send(`👋 ${interaction.user}\n\nPergunta 1:\nPor que quer ser capitão?`);
+      await thread.send({ embeds: [embed], components: [criarBotoesStaff()] });
+      await thread.send({ content: textoCopiavel });
 
-      await interaction.reply({ content: '📩 Continue na thread!', ephemeral: true });
+      cache.delete(interaction.user.id);
+      setCooldown(interaction.user.id);
+
+      await interaction.reply({ content: '✅ Enviado!', ephemeral: true });
     }
-
   }
-
 });
-
-// ======================================================
-// 📨 CONTINUAÇÃO DO FORMULÁRIO
-// ======================================================
-
-client.on('messageCreate', async (message) => {
-
-  if (message.author.bot) return;
-
-  const data = formularios.get(message.author.id);
-  if (!data) return;
-
-  if (!message.channel.isThread()) return;
-
-  // ============================
-  // ETAPA 1
-  // ============================
-  if (data.etapa === 1) {
-    data.respostas.motivo = message.content;
-    data.etapa = 2;
-    return message.reply('Pergunta 2:\nO que faria pela crew?');
-  }
-
-  // ============================
-  // ETAPA 2
-  // ============================
-  if (data.etapa === 2) {
-    data.respostas.crew = message.content;
-    data.etapa = 3;
-    return message.reply('Pergunta 3:\nComo lidaria com membros inativos?');
-  }
-
-  // ============================
-  // ETAPA 3
-  // ============================
-  if (data.etapa === 3) {
-    data.respostas.inativos = message.content;
-    data.etapa = 4;
-    return message.reply('Pergunta 4:\nJá teve problemas com staff?');
-  }
-
-  // ============================
-  // ETAPA 4
-  // ============================
-  if (data.etapa === 4) {
-    data.respostas.problemas = message.content;
-    data.etapa = 5;
-    return message.reply('Pergunta 5:\nDisponibilidade diária?');
-  }
-
-  // ============================
-  // FINAL
-  // ============================
-  if (data.etapa === 5) {
-
-    data.respostas.disp = message.content;
-
-    const embed = new EmbedBuilder()
-      .setColor('#22c55e')
-      .setTitle('📋 APLICAÇÃO COMPLETA — CAPITÃO')
-      .setDescription(`👤 ${message.author}`)
-      .addFields(
-        { name: 'Nome', value: data.nome },
-        { name: 'Idade', value: data.idade },
-        { name: 'Bounty', value: data.bounty },
-        { name: 'Tempo', value: data.tempo },
-        { name: 'Já foi capitão', value: data.cap },
-        { name: 'Motivo', value: data.respostas.motivo },
-        { name: 'Crew', value: data.respostas.crew },
-        { name: 'Inativos', value: data.respostas.inativos },
-        { name: 'Problemas', value: data.respostas.problemas },
-        { name: 'Disponibilidade', value: data.respostas.disp }
-      );
-
-    const botoes = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('aprovar_cap')
-        .setLabel('Aprovar')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId('recusar_cap')
-        .setLabel('Recusar')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await message.channel.send({ embeds: [embed], components: [botoes] });
-
-    formularios.delete(message.author.id);
-
-    return message.reply('✅ Formulário enviado para análise!');
-  }
-
-});
-
-// ======================================================
-// 🔚 FIM
-// ======================================================
 
 };
+    
