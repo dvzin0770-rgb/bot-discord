@@ -18,25 +18,35 @@ const STAFF_ROLE = 'Moderador Staff';
 const CAP_ROLE = '⃤⃟⃝ Capitão';
 const PREFIX = 'cap-';
 
-// COMANDO
+// ================= PAINEL =================
 client.on('messageCreate', async (msg) => {
   if (msg.author.bot) return;
 
   if (msg.content === '!formcapitao') {
 
     const embed = new EmbedBuilder()
-      .setColor('#0f172a')
-      .setTitle('👑 Frostvow — Capitão')
+      .setColor('#0ea5e9')
+      .setTitle('👑┃CAPITÃO — FROSTVOW')
       .setDescription(
-        '```diff\n+ Torne-se um Capitão da Frostvow\n```\n' +
-        'Clique no botão abaixo e preencha o formulário completo.\n\n' +
-        'A staff irá analisar sua aplicação.'
-      );
+`🌊 **Quer liderar a Frostvow?**
+
+Antes de aplicar, leia com atenção:
+
+⚠️ **REQUISITOS OBRIGATÓRIOS**
+• Ter **+10 DIAS na tripulação**
+• Ser ativo
+• Ter responsabilidade
+
+❌ Caso não cumpra, sua aplicação será recusada.
+
+📋 Clique no botão abaixo para iniciar sua candidatura.`
+      )
+      .setFooter({ text: 'Frostvow System' });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('abrir_form')
-        .setLabel('👑 Aplicar para Capitão')
+        .setLabel('👑 Candidatar-se')
         .setStyle(ButtonStyle.Success)
     );
 
@@ -44,15 +54,15 @@ client.on('messageCreate', async (msg) => {
   }
 });
 
-// INTERAÇÕES
+// ================= INTERAÇÕES =================
 client.on('interactionCreate', async (i) => {
 
-  // ABRIR MODAL
+  // ===== ABRIR MODAL =====
   if (i.isButton() && i.customId === 'abrir_form') {
 
     const modal = new ModalBuilder()
       .setCustomId('form_capitao')
-      .setTitle('👑 Formulário Capitão');
+      .setTitle('👑 Aplicação Capitão');
 
     modal.addComponents(
 
@@ -90,9 +100,9 @@ client.on('interactionCreate', async (i) => {
 
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
-          .setCustomId('extra')
-          .setLabel('Experiência / Motivo / Disponibilidade')
-          .setStyle(TextInputStyle.Paragraph)
+          .setCustomId('cap')
+          .setLabel('Já foi capitão?')
+          .setStyle(TextInputStyle.Short)
           .setRequired(true)
       )
     );
@@ -100,14 +110,16 @@ client.on('interactionCreate', async (i) => {
     return i.showModal(modal);
   }
 
-  // ENVIAR FORM
+  // ===== ENVIO DO FORM =====
   if (i.isModalSubmit() && i.customId === 'form_capitao') {
 
-    const nome = i.fields.getTextInputValue('nome');
-    const idade = i.fields.getTextInputValue('idade');
-    const bounty = i.fields.getTextInputValue('bounty');
-    const tempo = i.fields.getTextInputValue('tempo');
-    const extra = i.fields.getTextInputValue('extra');
+    const dados = {
+      nome: i.fields.getTextInputValue('nome'),
+      idade: i.fields.getTextInputValue('idade'),
+      bounty: i.fields.getTextInputValue('bounty'),
+      tempo: i.fields.getTextInputValue('tempo'),
+      cap: i.fields.getTextInputValue('cap')
+    };
 
     const thread = await i.channel.threads.create({
       name: `${PREFIX}${i.user.id}`,
@@ -124,23 +136,26 @@ client.on('interactionCreate', async (i) => {
       }
     }
 
+    // ===== EMBED =====
     const embed = new EmbedBuilder()
       .setColor('#22c55e')
-      .setTitle('📋 Nova Aplicação')
+      .setTitle('📋┃NOVA APLICAÇÃO — CAPITÃO')
       .setDescription(`👤 <@${i.user.id}>`)
       .addFields(
-        { name: 'Nome', value: nome },
-        { name: 'Idade', value: idade },
-        { name: 'Bounty', value: bounty },
-        { name: 'Tempo', value: tempo },
-        { name: 'Detalhes', value: extra }
+        { name: 'Nome', value: dados.nome },
+        { name: 'Idade', value: dados.idade },
+        { name: 'Bounty', value: dados.bounty },
+        { name: 'Tempo jogando', value: dados.tempo },
+        { name: 'Já foi capitão?', value: dados.cap }
       );
 
+    // ===== BOTÕES =====
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('aprovar')
         .setLabel('Aprovar')
         .setStyle(ButtonStyle.Success),
+
       new ButtonBuilder()
         .setCustomId('recusar')
         .setLabel('Recusar')
@@ -149,10 +164,24 @@ client.on('interactionCreate', async (i) => {
 
     await thread.send({ embeds: [embed], components: [row] });
 
-    await i.reply({ content: '✅ Aplicação enviada!', ephemeral: true });
+    // ===== PERGUNTAS NO TÓPICO =====
+    await thread.send({
+      content:
+`📌 **RESPONDA NO CHAT ABAIXO:**
+
+1. Por que quer ser capitão?
+2. O que faria pela crew?
+3. Como lidaria com membros inativos?
+4. Já teve problemas com staff?
+5. Qual sua disponibilidade diária?
+
+✍️ Responda tudo com calma.`
+    });
+
+    await i.reply({ content: '✅ Aplicação criada! Continue no tópico.', ephemeral: true });
   }
 
-  // STAFF
+  // ===== APROVAR / RECUSAR =====
   if (i.isButton() && (i.customId === 'aprovar' || i.customId === 'recusar')) {
 
     await i.deferReply({ ephemeral: true });
@@ -174,14 +203,14 @@ client.on('interactionCreate', async (i) => {
 
       eco.addMoney(userId, 5000);
 
-      await i.editReply('✅ Aprovado.');
+      await i.editReply('✅ Aprovado e cargo entregue.');
     }
 
     if (i.customId === 'recusar') {
-      await i.editReply('❌ Recusado.');
+      await i.editReply('❌ Aplicação recusada.');
     }
 
-    setTimeout(() => i.channel.delete().catch(() => {}), 3000);
+    setTimeout(() => i.channel.delete().catch(() => {}), 4000);
   }
 
 });
