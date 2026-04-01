@@ -1,5 +1,5 @@
 // =====================================================
-// 🌊 SISTEMA DE EVENTOS DO MAR (COMPLETO E BONITO)
+// 🌊 EVENTOS DO MAR (VERSÃO CORRIGIDA COM SUAS OPÇÕES)
 // =====================================================
 
 const {
@@ -21,15 +21,18 @@ module.exports = (client) => {
 
 const STAFF_ROLE = 'Moderador Staff';
 
-const PONTOS = {
-  'sea': 1000,
-  'boss': 2000,
-  'pvp': 1500,
-  'raid': 2500
+// PONTOS BASEADOS NA SUA IMAGEM
+const EVENTOS = {
+  leviathan: { nome: '🐉 Leviathan', pontos: 3 },
+  terroshark: { nome: '🦈 Terroshark', pontos: 1 },
+  seabeast: { nome: '🌊 Sea Beast', pontos: 1 },
+  vulcao: { nome: '🌋 Ilha do Vulcão', pontos: 2 },
+  navio: { nome: '👻 Navio Fantasma', pontos: 1 },
+  raid: { nome: '⚔️ Raid', pontos: 1 }
 };
 
 // =====================================================
-// 📌 COMANDO !evento
+// 📌 COMANDO
 // =====================================================
 
 client.on('messageCreate', async (message) => {
@@ -38,37 +41,49 @@ client.on('messageCreate', async (message) => {
   if (message.content === '!evento') {
 
     const embed = new EmbedBuilder()
-      .setColor('#0ea5e9')
-      .setTitle('🌊 SISTEMA DE EVENTOS — FROSTVOW')
+      .setColor('#7c3aed')
+      .setTitle('🌊┃REGISTRAR EVENTO DO MAR')
       .setDescription(
-        'Escolha abaixo o tipo de evento que você realizou.\n\n' +
-        '📸 Após isso, envie a **print no tópico criado**.\n' +
-        '📊 A staff irá analisar e aprovar.'
+        '📸 Envie a prova corretamente seguindo as regras:\n\n' +
+        '• Deve ser no momento da finalização\n' +
+        '• O evento deve estar visível\n' +
+        '• Seu nick deve aparecer\n\n' +
+        '📌 Depois escolha o evento abaixo'
       );
 
     const menu = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
-        .setCustomId('select_evento')
-        .setPlaceholder('🌊 Escolha o evento...')
+        .setCustomId('evento_select')
+        .setPlaceholder('📌 Escolha o evento')
         .addOptions([
           {
-            label: '🌊 Sea Hunt',
-            description: 'Caça marítima',
-            value: 'sea'
+            label: '🐉 Leviathan',
+            description: 'Vale 3 pontos',
+            value: 'leviathan'
           },
           {
-            label: '👹 Boss',
-            description: 'Derrotar boss',
-            value: 'boss'
+            label: '🦈 Terroshark',
+            description: 'Vale 1 ponto',
+            value: 'terroshark'
           },
           {
-            label: '⚔️ PvP',
-            description: 'Combate jogador',
-            value: 'pvp'
+            label: '🌊 Sea Beast',
+            description: 'Vale 1 ponto',
+            value: 'seabeast'
           },
           {
-            label: '🔥 Raid',
-            description: 'Ataque em grupo',
+            label: '🌋 Ilha do Vulcão',
+            description: 'Vale 2 pontos',
+            value: 'vulcao'
+          },
+          {
+            label: '👻 Navio Fantasma',
+            description: 'Vale 1 ponto',
+            value: 'navio'
+          },
+          {
+            label: '⚔️ Raid',
+            description: 'Vale 1 ponto',
             value: 'raid'
           }
         ])
@@ -90,13 +105,14 @@ client.on('interactionCreate', async (interaction) => {
   // ================= MENU =================
   if (interaction.isStringSelectMenu()) {
 
-    if (interaction.customId === 'select_evento') {
+    if (interaction.customId === 'evento_select') {
 
       const tipo = interaction.values[0];
+      const dados = EVENTOS[tipo];
 
       await interaction.deferReply({ ephemeral: true });
 
-      // CRIAR TÓPICO
+      // CRIA TÓPICO
       const thread = await interaction.channel.threads.create({
         name: `evento-${interaction.user.id}`,
         type: ChannelType.PublicThread,
@@ -105,15 +121,15 @@ client.on('interactionCreate', async (interaction) => {
 
       await thread.members.add(interaction.user.id);
 
-      // EMBED BONITO
+      // EMBED DO TÓPICO
       const embed = new EmbedBuilder()
         .setColor('#22c55e')
-        .setTitle('📸 ENVIE SUA PROVA')
+        .setTitle('📸┃ENVIE SUA PROVA')
         .setDescription(
           `👤 <@${interaction.user.id}>\n\n` +
-          `📌 Tipo: **${tipo.toUpperCase()}**\n\n` +
-          `📷 Envie a print aqui.\n` +
-          `⏳ Aguarde aprovação da staff.`
+          `📌 Evento: **${dados.nome}**\n` +
+          `🏆 Pontos: **${dados.pontos}**\n\n` +
+          `Envie a imagem abaixo.\nA staff irá analisar.`
         );
 
       const botoes = new ActionRowBuilder().addComponents(
@@ -145,7 +161,7 @@ client.on('interactionCreate', async (interaction) => {
     const staff = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE);
 
     if (!staff || !interaction.member.roles.cache.has(staff.id)) {
-      return interaction.editReply('❌ Apenas staff pode usar.');
+      return interaction.editReply('❌ Apenas staff.');
     }
 
     const id = interaction.customId;
@@ -153,21 +169,18 @@ client.on('interactionCreate', async (interaction) => {
     // ================= APROVAR =================
     if (id.startsWith('aprovar_')) {
 
-      const partes = id.split('_');
-      const userId = partes[1];
-      const tipo = partes[2];
+      const [_, userId, tipo] = id.split('_');
+      const dados = EVENTOS[tipo];
 
-      const pontos = PONTOS[tipo] || 0;
-
-      eco.addMoney(userId, pontos);
+      eco.addMoney(userId, dados.pontos);
 
       const membro = await interaction.guild.members.fetch(userId).catch(()=>null);
 
       if (membro) {
-        membro.send(`✅ Evento aprovado! +${pontos} coins`).catch(()=>{});
+        membro.send(`✅ Evento aprovado!\n🏆 +${dados.pontos} pontos`).catch(()=>{});
       }
 
-      await interaction.editReply(`✅ Aprovado (+${pontos})`);
+      await interaction.editReply(`✅ Aprovado (+${dados.pontos})`);
 
       setTimeout(() => {
         interaction.channel.delete().catch(()=>{});
@@ -177,8 +190,7 @@ client.on('interactionCreate', async (interaction) => {
     // ================= RECUSAR =================
     if (id.startsWith('recusar_')) {
 
-      const partes = id.split('_');
-      const userId = partes[1];
+      const userId = id.split('_')[1];
 
       const membro = await interaction.guild.members.fetch(userId).catch(()=>null);
 
