@@ -12,9 +12,14 @@ const level = require('./level');
 const rankEventos = require('./rank-eventos');
 const boasVindas = require('./boas-vindas');
 const mines = require('./mines');
-const economiaCmds = require('./economia-cmds');
-const addMoney = require('./addmoney');
-const topRicos = require('./topricos');
+
+// ❌ REMOVIDOS (CAUSAVAM BUG DE SALDO)
+// const economiaCmds = require('./economia-cmds');
+// const addMoney = require('./addmoney');
+// const topRicos = require('./topricos');
+
+// ✅ ECONOMIA CORRETA
+const eco = require('./economia');
 
 // 🎮 MINIGAMES
 const slot = require('./slot');
@@ -25,7 +30,7 @@ const boss = require('./boss');
 const blackjack = require('./blackjack');
 const guess = require('./guess');
 
-// 👑 FORMULÁRIO CAPITÃO (ADICIONADO)
+// 👑 FORMULÁRIO CAPITÃO
 const formCapitao = require('./formCapitao');
 
 // ===== CLIENT =====
@@ -44,7 +49,7 @@ const client = new Client({
   ]
 });
 
-// ===== DEBUG TOKEN 🔥 =====
+// ===== DEBUG TOKEN =====
 console.log("TOKEN LIDO:", process.env.TOKEN);
 
 // ===== ATIVAR SISTEMAS =====
@@ -59,9 +64,9 @@ level(client);
 rankEventos(client);
 boasVindas(client);
 mines(client);
-// economiaCmds(client);
-// addMoney(client);
-// topRicos(client);
+
+// ✅ ATIVA ECONOMIA (AGORA SIM FUNCIONA)
+eco.iniciar(client);
 
 // 🎮 ATIVAR MINIGAMES
 slot(client);
@@ -72,7 +77,7 @@ boss(client);
 blackjack(client);
 guess(client);
 
-// 👑 ATIVAR FORMULÁRIO CAPITÃO (ADICIONADO)
+// 👑 FORMULÁRIO CAPITÃO
 formCapitao(client);
 
 // ===== READY =====
