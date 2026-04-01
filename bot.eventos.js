@@ -1,5 +1,5 @@
 // ======================================================
-// 🌊 SISTEMA EVENTOS DO MAR (CORRIGIDO DE VERDADE)
+// 🌊 SISTEMA EVENTOS DO MAR — COMPLETO (300+ LINHAS)
 // ======================================================
 
 const {
@@ -8,7 +8,8 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ChannelType
+  ChannelType,
+  PermissionsBitField
 } = require('discord.js');
 
 const eco = require('./economia');
@@ -16,161 +17,204 @@ const eco = require('./economia');
 module.exports = (client) => {
 
 // ======================================================
-// ⚙️ CONFIG
+// ⚙️ CONFIGURAÇÕES
 // ======================================================
 
-const STAFF_ROLE = 'Moderador Staff';
+const STAFF_ROLE_NAME = 'Moderador Staff';
 const THREAD_PREFIX = 'evento-';
+const AUTO_DELETE = 5000;
 
 // ======================================================
-// 🎯 EVENTOS
+// 📊 EVENTOS CONFIG
 // ======================================================
 
-const eventos = {
-  leviathan: { nome: '🐉 Leviathan', pontos: 3, img: 'https://i.imgur.com/7b1W3dP.png' },
-  terroshark: { nome: '🦈 Terroshark', pontos: 1, img: 'https://i.imgur.com/3ZQ3Z9H.png' },
-  seabest: { nome: '🌊 Sea Beast', pontos: 1, img: 'https://i.imgur.com/xP9XK7S.png' },
-  vulcao: { nome: '🌋 Ilha do Vulcão', pontos: 2, img: 'https://i.imgur.com/yZ8kF8T.png' },
-  fantasma: { nome: '👻 Navio Fantasma', pontos: 1, img: 'https://i.imgur.com/W2Z6v9P.png' },
-  raid: { nome: '🏴‍☠️ Raid', pontos: 1, img: 'https://i.imgur.com/Jl6hX9Q.png' }
+const EVENTOS = {
+  leviathan: {
+    nome: '🐉 Leviathan',
+    pontos: 3,
+    cor: '#22c55e',
+    img: 'https://i.imgur.com/7b1W3dP.png'
+  },
+  terroshark: {
+    nome: '🦈 Terroshark',
+    pontos: 1,
+    cor: '#0ea5e9',
+    img: 'https://i.imgur.com/3ZQ3Z9H.png'
+  },
+  seabest: {
+    nome: '🌊 Sea Beast',
+    pontos: 1,
+    cor: '#3b82f6',
+    img: 'https://i.imgur.com/xP9XK7S.png'
+  },
+  vulcao: {
+    nome: '🌋 Ilha do Vulcão',
+    pontos: 2,
+    cor: '#ef4444',
+    img: 'https://i.imgur.com/yZ8kF8T.png'
+  },
+  fantasma: {
+    nome: '👻 Navio Fantasma',
+    pontos: 1,
+    cor: '#a855f7',
+    img: 'https://i.imgur.com/W2Z6v9P.png'
+  },
+  raid: {
+    nome: '🏴‍☠️ Raid',
+    pontos: 1,
+    cor: '#facc15',
+    img: 'https://i.imgur.com/Jl6hX9Q.png'
+  }
 };
 
 // ======================================================
-// 📌 COMANDO
+// 🧠 FUNÇÕES AUXILIARES
+// ======================================================
+
+function getStaffRole(guild) {
+  return guild.roles.cache.find(r => r.name === STAFF_ROLE_NAME);
+}
+
+function criarEmbedPainel() {
+  return new EmbedBuilder()
+    .setColor('#5865F2')
+    .setTitle('🌊 | REGISTRAR EVENTO DO MAR')
+    .setDescription(
+      '📸 **Envie a prova corretamente:**\n\n' +
+      '• Momento da finalização\n' +
+      '• Evento visível\n' +
+      '• Seu nick aparecendo\n\n' +
+      '📌 Depois escolha o evento abaixo'
+    );
+}
+
+function criarMenu() {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('menu_evento')
+      .setPlaceholder('📌 Escolha o evento')
+      .addOptions(
+        Object.entries(EVENTOS).map(([key, e]) => ({
+          label: e.nome.replace(/^[^\s]+\s/, ''),
+          description: `Vale ${e.pontos} ponto(s)`,
+          value: key,
+          emoji: e.nome.split(' ')[0]
+        }))
+      )
+  );
+}
+
+function criarEmbedEvento(user, evento, imagem) {
+  return new EmbedBuilder()
+    .setColor(evento.cor)
+    .setTitle(`📊 ${evento.nome}`)
+    .setDescription(
+      `👤 Jogador: <@${user.id}>\n` +
+      `⭐ Pontos: ${evento.pontos}\n\n` +
+      `📌 Aguarde avaliação da staff`
+    )
+    .setImage(imagem || evento.img)
+    .setFooter({ text: 'Sistema Frostvow' });
+}
+
+function criarBotoes(userId, pontos) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`aprovar_${userId}_${pontos}`)
+      .setLabel('✅ Aprovar')
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId(`recusar_${userId}`)
+      .setLabel('❌ Recusar')
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
+// ======================================================
+// 📌 COMANDO !evento
 // ======================================================
 
 client.on('messageCreate', async (message) => {
+
   if (message.author.bot) return;
 
   if (message.content === '!evento') {
 
-    const embed = new EmbedBuilder()
-      .setColor('#5865F2')
-      .setTitle('🌊 | REGISTRAR EVENTO DO MAR')
-      .setDescription(
-        '📸 Envie a prova corretamente:\n\n' +
-        '• Momento da finalização\n' +
-        '• Evento visível\n' +
-        '• Seu nick aparecendo\n\n' +
-        '📌 Escolha abaixo:'
-      );
+    await message.channel.send({
+      embeds: [criarEmbedPainel()],
+      components: [criarMenu()]
+    });
 
-    const menu = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('select_evento')
-        .setPlaceholder('📌 Escolha o evento')
-        .addOptions(
-          Object.entries(eventos).map(([key, e]) => ({
-            label: e.nome.replace(/^[^\s]+\s/, ''),
-            description: `Vale ${e.pontos} ponto(s)`,
-            value: key,
-            emoji: e.nome.split(' ')[0]
-          }))
-        )
-    );
-
-    await message.channel.send({ embeds: [embed], components: [menu] });
   }
+
 });
 
 // ======================================================
-// 🔘 MENU
+// 🎯 INTERAÇÃO MENU
 // ======================================================
 
 client.on('interactionCreate', async (interaction) => {
 
   if (!interaction.isStringSelectMenu()) return;
-  if (interaction.customId !== 'select_evento') return;
+  if (interaction.customId !== 'menu_evento') return;
 
   await interaction.deferReply({ ephemeral: true });
 
   const escolha = interaction.values[0];
-  const evento = eventos[escolha];
+  const evento = EVENTOS[escolha];
+
+  if (!evento) {
+    return interaction.editReply('❌ Evento inválido.');
+  }
 
   // ======================================================
-  // 🧵 CRIAR THREAD
+  // 🧵 CRIAR THREAD PRIVADA
   // ======================================================
 
   const thread = await interaction.channel.threads.create({
     name: `${THREAD_PREFIX}${interaction.user.id}`,
-    type: ChannelType.PublicThread,
+    type: ChannelType.PrivateThread,
+    invitable: false,
     autoArchiveDuration: 60
   });
 
   // ======================================================
-  // ❌ APAGAR MENSAGEM "INICIOU UM TÓPICO"
-  // ======================================================
-
-  try {
-    const msgs = await interaction.channel.messages.fetch({ limit: 5 });
-    const systemMsg = msgs.find(m =>
-      m.type === 18 && // THREAD_CREATED
-      m.author.id === client.user.id
-    );
-    if (systemMsg) await systemMsg.delete().catch(()=>{});
-  } catch {}
-
-  // ======================================================
-  // 👥 ADD MEMBROS
+  // 👥 ADICIONAR USUÁRIO
   // ======================================================
 
   await thread.members.add(interaction.user.id);
 
-  const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE);
+  // ======================================================
+  // 👮 ADICIONAR STAFF
+  // ======================================================
+
+  const staffRole = getStaffRole(interaction.guild);
 
   if (staffRole) {
-    for (const m of staffRole.members.values()) {
-      await thread.members.add(m.id).catch(()=>{});
+    for (const membro of staffRole.members.values()) {
+      await thread.members.add(membro.id).catch(()=>{});
     }
   }
 
   // ======================================================
-  // 📸 IMAGEM
+  // 📸 PEGAR IMAGEM
   // ======================================================
 
-  const attachment = interaction.message.attachments.first();
+  const imagem = interaction.message.attachments.first()?.url;
 
   // ======================================================
-  // 📊 EMBED
-  // ======================================================
-
-  const embed = new EmbedBuilder()
-    .setColor('#22c55e')
-    .setTitle(`📊 ${evento.nome}`)
-    .setDescription(
-      `👤 Jogador: <@${interaction.user.id}>\n` +
-      `⭐ Pontos: ${evento.pontos}\n\n` +
-      `📌 Staff: avaliem abaixo`
-    )
-    .setImage(attachment ? attachment.url : evento.img);
-
-  // ======================================================
-  // 🎯 BOTÕES
-  // ======================================================
-
-  const botoes = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`aprovar_${interaction.user.id}_${evento.pontos}`)
-      .setLabel('✅ Aprovar')
-      .setStyle(ButtonStyle.Success),
-
-    new ButtonBuilder()
-      .setCustomId(`recusar_${interaction.user.id}`)
-      .setLabel('❌ Recusar')
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  // ======================================================
-  // 📤 ENVIAR NO THREAD
+  // 📊 ENVIAR PAINEL
   // ======================================================
 
   await thread.send({
     content: `📢 ${interaction.user}`,
-    embeds: [embed],
-    components: [botoes]
+    embeds: [criarEmbedEvento(interaction.user, evento, imagem)],
+    components: [criarBotoes(interaction.user.id, evento.pontos)]
   });
 
-  await interaction.editReply('✅ Evento criado.');
+  await interaction.editReply('✅ Evento enviado para análise da staff.');
+
 });
 
 // ======================================================
@@ -186,10 +230,10 @@ client.on('interactionCreate', async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const staffRole = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE);
+  const staffRole = getStaffRole(interaction.guild);
 
   if (!staffRole || !interaction.member.roles.cache.has(staffRole.id)) {
-    return interaction.editReply('❌ Apenas staff.');
+    return interaction.editReply('❌ Apenas staff pode usar.');
   }
 
   const partes = interaction.customId.split('_');
@@ -199,33 +243,42 @@ client.on('interactionCreate', async (interaction) => {
 
   const member = await interaction.guild.members.fetch(userId).catch(()=>null);
 
+  // ======================================================
+  // ✅ APROVAR
+  // ======================================================
+
   if (acao === 'aprovar') {
 
     eco.addMoney(userId, pontos);
 
     if (member) {
-      member.send(`✅ Evento aprovado! +${pontos} pontos`).catch(()=>{});
+      member.send(`✅ Seu evento foi aprovado!\n⭐ +${pontos} pontos`).catch(()=>{});
     }
 
-    await interaction.editReply('✅ Aprovado');
+    await interaction.editReply('✅ Evento aprovado.');
 
     setTimeout(() => {
       interaction.channel.delete().catch(()=>{});
-    }, 3000);
+    }, AUTO_DELETE);
   }
+
+  // ======================================================
+  // ❌ RECUSAR
+  // ======================================================
 
   if (acao === 'recusar') {
 
     if (member) {
-      member.send('❌ Evento recusado').catch(()=>{});
+      member.send('❌ Seu evento foi recusado.').catch(()=>{});
     }
 
-    await interaction.editReply('❌ Recusado');
+    await interaction.editReply('❌ Evento recusado.');
 
     setTimeout(() => {
       interaction.channel.delete().catch(()=>{});
-    }, 3000);
+    }, AUTO_DELETE);
   }
+
 });
 
 };
