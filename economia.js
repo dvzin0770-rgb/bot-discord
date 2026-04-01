@@ -7,23 +7,19 @@ const path = require('path');
 const DB_PATH = path.join(__dirname, 'economia.json');
 
 // =============================
-// 🧠 CACHE GLOBAL (ANTI BUG)
+// 🧠 CACHE
 // =============================
 let db = null;
 
 // =============================
-// 🔄 CARREGAR DB UMA VEZ
+// 🔄 LOAD
 // =============================
 function loadDB() {
 
   if (db) return db;
 
   if (!fs.existsSync(DB_PATH)) {
-    db = {
-      users: {},
-      daily: {}
-    };
-
+    db = { users: {}, daily: {} };
     fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
     return db;
   }
@@ -36,8 +32,7 @@ function loadDB() {
     if (!db.daily) db.daily = {};
 
   } catch (err) {
-    console.log('❌ ERRO AO CARREGAR DB:', err);
-
+    console.log('ERRO DB:', err);
     db = { users: {}, daily: {} };
   }
 
@@ -45,21 +40,16 @@ function loadDB() {
 }
 
 // =============================
-// 💾 SALVAR DIRETO (SEM FILA BUGADA)
+// 💾 SAVE
 // =============================
 function saveDB() {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-  } catch (err) {
-    console.log('❌ ERRO AO SALVAR:', err);
-  }
+  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
 // =============================
-// 👤 GARANTIR USER
+// 👤 USER
 // =============================
 function ensureUser(id) {
-
   const database = loadDB();
 
   if (!database.users[id]) {
@@ -70,7 +60,6 @@ function ensureUser(id) {
     };
     saveDB();
   }
-
 }
 
 // =============================
@@ -86,10 +75,8 @@ function getSaldo(id) {
 // =============================
 function addMoney(id, valor) {
   ensureUser(id);
-
   db.users[id].saldo += valor;
   db.users[id].totalGanho += valor;
-
   saveDB();
 }
 
@@ -98,7 +85,6 @@ function addMoney(id, valor) {
 // =============================
 function removeMoney(id, valor) {
   ensureUser(id);
-
   db.users[id].saldo -= valor;
   db.users[id].totalPerdido += valor;
 
@@ -142,9 +128,44 @@ function daily(id) {
 }
 
 // =============================
-// 🏆 EXPORT
+// 🎮 COMANDOS
+// =============================
+function iniciar(client) {
+
+  client.on('messageCreate', async (message) => {
+
+    if (message.author.bot) return;
+
+    const cmd = message.content.toLowerCase();
+    const id = message.author.id;
+
+    // SALDO
+    if (cmd === '!saldo') {
+      const saldo = getSaldo(id);
+      return message.reply(`💰 Seu saldo: ${saldo}`);
+    }
+
+    // DAILY
+    if (cmd === '!daily') {
+
+      const ok = daily(id);
+
+      if (!ok) {
+        return message.reply('⏳ Já pegou hoje.');
+      }
+
+      return message.reply('🎁 +5000 moedas');
+    }
+
+  });
+
+}
+
+// =============================
+// 📤 EXPORT
 // =============================
 module.exports = {
+  iniciar,
   getSaldo,
   addMoney,
   removeMoney,
