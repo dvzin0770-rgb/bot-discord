@@ -3,6 +3,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   ChannelType
 } = require('discord.js');
 
@@ -10,220 +11,152 @@ const eco = require('./economia');
 
 module.exports = (client) => {
 
-// ================= CONFIG =================
-
+// CONFIG
 const CANAL = '💬丨ɢᴇʀᴀʟ';
-const TEMPO_EVENTO = 15 * 60 * 1000;
-const INTERVALO = 20 * 60 * 1000;
+const STAFF_ROLE = 'Moderador Staff';
+const PREFIX = 'evento-';
 
-let ativo = false;
+// TIPOS DE EVENTO
+const EVENTOS = {
+  hunt: { nome: 'Sea Hunt', pontos: 1000 },
+  boss: { nome: 'Boss', pontos: 1500 },
+  pvp: { nome: 'PvP', pontos: 800 },
+  raid: { nome: 'Raid', pontos: 1200 }
+};
 
-// ================= EVENTOS =================
+// ================= COMANDO =================
+client.on('messageCreate', async (msg) => {
+  if (msg.author.bot) return;
 
-const eventos = [
-  { nome: '💰 Tesouro', tipo: 'click', recompensa: 2000 },
-  { nome: '⚔️ Guerra Naval', tipo: 'boss', vida: 5000, recompensa: 8000 },
-  { nome: '🐉 Kraken', tipo: 'boss', vida: 8000, recompensa: 12000 },
-  { nome: '🏝 Ilha', tipo: 'multi', recompensa: 3000 }
-];
+  if (msg.content === '!evento') {
 
-// ================= HELPERS =================
+    const menu = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('select_evento')
+        .setPlaceholder('Escolha o tipo de evento')
+        .addOptions(
+          {
+            label: 'Sea Hunt',
+            value: 'hunt',
+            description: 'Caça marítima'
+          },
+          {
+            label: 'Boss',
+            value: 'boss',
+            description: 'Derrotar boss'
+          },
+          {
+            label: 'PvP',
+            value: 'pvp',
+            description: 'Combate jogador'
+          },
+          {
+            label: 'Raid',
+            value: 'raid',
+            description: 'Ataque em grupo'
+          }
+        )
+    );
 
-function rand(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+    await msg.channel.send({
+      content: '🌊 Escolha o tipo de evento:',
+      components: [menu]
+    });
+  }
+});
 
-function criarThread(canal) {
-  return canal.threads.create({
-    name: `evento-${Date.now()}`,
-    type: ChannelType.PublicThread,
-    autoArchiveDuration: 60
-  });
-}
+// ================= MENU =================
+client.on('interactionCreate', async (i) => {
 
-// ================= EVENTO CLICK =================
+  if (i.isStringSelectMenu() && i.customId === 'select_evento') {
 
-async function eventoClick(thread, evento) {
+    const tipo = i.values[0];
+    const dados = EVENTOS[tipo];
 
-  const embed = new EmbedBuilder()
-    .setColor('#22c55e')
-    .setTitle(evento.nome)
-    .setDescription('Clique no botão para pegar!');
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('pegar')
-      .setLabel('PEGAR')
-      .setStyle(ButtonStyle.Success)
-  );
-
-  const msg = await thread.send({ embeds: [embed], components: [row] });
-
-  const collector = msg.createMessageComponentCollector({ time: TEMPO_EVENTO });
-
-  let ganhou = false;
-
-  collector.on('collect', async (i) => {
-
-    if (ganhou) return i.reply({ content: 'Já foi!', ephemeral: true });
-
-    ganhou = true;
-
-    eco.addMoney(i.user.id, evento.recompensa);
-
-    await i.reply(`🏆 Você ganhou ${evento.recompensa}`);
-
-    msg.edit({ components: [] });
-
-    collector.stop();
-  });
-
-}
-
-// ================= EVENTO BOSS =================
-
-async function eventoBoss(thread, evento) {
-
-  let vida = evento.vida;
-
-  const embed = new EmbedBuilder()
-    .setColor('#ef4444')
-    .setTitle(evento.nome)
-    .setDescription(`❤️ Vida: ${vida}`);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('atacar')
-      .setLabel('ATACAR')
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  const msg = await thread.send({ embeds: [embed], components: [row] });
-
-  const players = new Map();
-
-  const collector = msg.createMessageComponentCollector({ time: TEMPO_EVENTO });
-
-  collector.on('collect', async (i) => {
-
-    const dmg = Math.floor(Math.random() * 300) + 100;
-
-    vida -= dmg;
-
-    players.set(i.user.id, (players.get(i.user.id) || 0) + dmg);
-
-    await i.reply({ content: `💥 ${dmg} de dano!`, ephemeral: true });
-
-    embed.setDescription(`❤️ Vida: ${vida}`);
-    msg.edit({ embeds: [embed] });
-
-    if (vida <= 0) {
-      collector.stop();
-
-      let vencedor = null;
-      let maior = 0;
-
-      for (const [id, dano] of players) {
-        if (dano > maior) {
-          maior = dano;
-          vencedor = id;
-        }
-      }
-
-      if (vencedor) {
-        eco.addMoney(vencedor, evento.recompensa);
-        thread.send(`🏆 <@${vencedor}> deu mais dano e ganhou!`);
-      }
-    }
-
-  });
-
-}
-
-// ================= EVENTO MULTI =================
-
-async function eventoMulti(thread, evento) {
-
-  const participantes = new Set();
-
-  const embed = new EmbedBuilder()
-    .setColor('#3b82f6')
-    .setTitle(evento.nome)
-    .setDescription('Digite **entrar**');
-
-  await thread.send({ embeds: [embed] });
-
-  const collector = thread.createMessageCollector({ time: TEMPO_EVENTO });
-
-  collector.on('collect', (msg) => {
-
-    if (msg.content === 'entrar') {
-      participantes.add(msg.author.id);
-    }
-
-  });
-
-  collector.on('end', () => {
-
-    participantes.forEach(id => {
-      eco.addMoney(id, evento.recompensa);
-      thread.send(`💰 <@${id}> ganhou ${evento.recompensa}`);
+    const thread = await i.channel.threads.create({
+      name: `${PREFIX}${i.user.id}`,
+      type: ChannelType.PrivateThread
     });
 
-  });
+    await thread.members.add(client.user.id);
+    await thread.members.add(i.user.id);
 
-}
+    const staff = i.guild.roles.cache.find(r => r.name === STAFF_ROLE);
+    if (staff) {
+      for (const m of staff.members.values()) {
+        await thread.members.add(m.id).catch(()=>{});
+      }
+    }
 
-// ================= CONTROLADOR =================
+    const embed = new EmbedBuilder()
+      .setColor('#3b82f6')
+      .setTitle('🌊┃EVENTO DO MAR')
+      .setDescription(
+`📌 Tipo: **${dados.nome}**
+🏆 Pontos: **${dados.pontos}**
 
-async function iniciarEvento(canal) {
+Envie sua prova abaixo (imagem/vídeo).`
+      );
 
-  if (ativo) return;
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`aprovar_${tipo}`)
+        .setLabel('Aprovar')
+        .setStyle(ButtonStyle.Success),
 
-  ativo = true;
+      new ButtonBuilder()
+        .setCustomId(`recusar_${tipo}`)
+        .setLabel('Recusar')
+        .setStyle(ButtonStyle.Danger)
+    );
 
-  const evento = rand(eventos);
+    await thread.send({ embeds: [embed], components: [row] });
 
-  let thread;
-
-  try {
-    thread = await criarThread(canal);
-  } catch (err) {
-    console.log(err);
-    ativo = false;
-    return;
+    await i.reply({ content: '✅ Evento criado!', ephemeral: true });
   }
 
-  if (evento.tipo === 'click') await eventoClick(thread, evento);
-  if (evento.tipo === 'boss') await eventoBoss(thread, evento);
-  if (evento.tipo === 'multi') await eventoMulti(thread, evento);
+  // ================= BOTÕES =================
+  if (i.isButton()) {
 
-  setTimeout(() => {
-    thread.delete().catch(()=>{});
-    ativo = false;
-  }, TEMPO_EVENTO + 5000);
+    const [acao, tipo] = i.customId.split('_');
 
-}
+    if (!tipo) return;
 
-// ================= LOOP =================
+    await i.deferReply({ ephemeral: true });
 
-function loop(canal) {
-  setInterval(() => {
-    iniciarEvento(canal);
-  }, INTERVALO);
-}
+    const staff = i.guild.roles.cache.find(r => r.name === STAFF_ROLE);
+    if (!staff || !i.member.roles.cache.has(staff.id)) {
+      return i.editReply('❌ Apenas staff.');
+    }
 
-// ================= READY =================
+    const dados = EVENTOS[tipo];
+    const userId = i.channel.name.replace(PREFIX, '');
+    const member = await i.guild.members.fetch(userId).catch(()=>null);
 
-client.once('ready', () => {
+    if (acao === 'aprovar') {
 
-  const guild = client.guilds.cache.first();
-  if (!guild) return;
+      eco.addMoney(userId, dados.pontos);
 
-  const canal = guild.channels.cache.find(c => c.name === CANAL);
-  if (!canal) return console.log('Canal não encontrado');
+      if (member) {
+        member.send(`✅ Evento aprovado! +${dados.pontos} moedas`).catch(()=>{});
+      }
 
-  loop(canal);
+      await i.editReply(`✅ Aprovado (+${dados.pontos})`);
+
+      setTimeout(() => i.channel.delete().catch(()=>{}), 3000);
+    }
+
+    if (acao === 'recusar') {
+
+      if (member) {
+        member.send('❌ Evento recusado.').catch(()=>{});
+      }
+
+      await i.editReply('❌ Recusado.');
+
+      setTimeout(() => i.channel.delete().catch(()=>{}), 3000);
+    }
+  }
 
 });
 
