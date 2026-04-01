@@ -59,9 +59,9 @@ level(client);
 rankEventos(client);
 boasVindas(client);
 mines(client);
-economiaCmds(client);
-addMoney(client);
-topRicos(client);
+// economiaCmds(client);
+// addMoney(client);
+// topRicos(client);
 
 // 🎮 ATIVAR MINIGAMES
 slot(client);
