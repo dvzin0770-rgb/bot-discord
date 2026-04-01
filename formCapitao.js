@@ -1,3 +1,7 @@
+// ======================================================
+// 👑 FORM CAPITÃO COMPLETO (FUNCIONAL)
+// ======================================================
+
 const {
   ActionRowBuilder,
   ButtonBuilder,
@@ -13,12 +17,45 @@ const eco = require('./economia');
 
 module.exports = (client) => {
 
+// ================= CONFIG =================
 const STAFF_ROLE = 'Moderador Staff';
 const CAP_ROLE = '⃤⃟⃝ Capitão';
+const PREFIX = 'cap-';
+const COOLDOWN = 5 * 60 * 1000;
 
+// ================= CACHE =================
 const cache = new Map();
+const cooldown = new Map();
 
-// ================== PAINEL ==================
+// ================= FUNÇÕES =================
+function getRole(guild, name) {
+  return guild.roles.cache.find(r => r.name === name);
+}
+
+function emCooldown(id) {
+  return cooldown.has(id) && Date.now() < cooldown.get(id);
+}
+
+function setCooldown(id) {
+  cooldown.set(id, Date.now() + COOLDOWN);
+}
+
+function formatar(p1, p2) {
+  return "```\n" +
+    `Nome: ${p1.nome}\n` +
+    `Idade: ${p1.idade}\n` +
+    `Bounty: ${p1.bounty}\n` +
+    `Tempo: ${p1.tempo}\n` +
+    `Capitão antes: ${p1.cap}\n\n` +
+    `Motivo: ${p2.motivo}\n` +
+    `Crew: ${p2.crew}\n` +
+    `Inativos: ${p2.inativos}\n` +
+    `Problemas: ${p2.problemas}\n` +
+    `Disponibilidade: ${p2.disp}\n` +
+  "```";
+}
+
+// ================= COMANDO =================
 client.on('messageCreate', async (msg) => {
   if (msg.author.bot) return;
 
@@ -40,13 +77,18 @@ client.on('messageCreate', async (msg) => {
   }
 });
 
-// ================== INTERAÇÕES ==================
-client.on('interactionCreate', async (interaction) => {
+// ================= INTERAÇÕES =================
+client.on('interactionCreate', async (i) => {
 
-  // ================= BOTÃO =================
-  if (interaction.isButton()) {
+  // ===== BOTÕES =====
+  if (i.isButton()) {
 
-    if (interaction.customId === 'abrir_form') {
+    // abrir formulário
+    if (i.customId === 'abrir_form') {
+
+      if (emCooldown(i.user.id)) {
+        return i.reply({ content: '⏳ Aguarde para aplicar novamente.', ephemeral: true });
+      }
 
       const modal = new ModalBuilder()
         .setCustomId('form1')
@@ -54,98 +96,86 @@ client.on('interactionCreate', async (interaction) => {
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('nome')
-            .setLabel('Nome no jogo')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('nome').setLabel('Nome no jogo').setStyle(TextInputStyle.Short).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('idade')
-            .setLabel('Idade')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('idade').setLabel('Idade').setStyle(TextInputStyle.Short).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('bounty')
-            .setLabel('Bounty')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('bounty').setLabel('Bounty').setStyle(TextInputStyle.Short).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('tempo')
-            .setLabel('Tempo jogando')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('tempo').setLabel('Tempo jogando').setStyle(TextInputStyle.Short).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('cap')
-            .setLabel('Já foi capitão?')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('cap').setLabel('Já foi capitão?').setStyle(TextInputStyle.Short).setRequired(true)
         )
       );
 
-      return interaction.showModal(modal);
+      return i.showModal(modal);
     }
 
-    // ================= APROVAR / RECUSAR =================
-    if (interaction.customId === 'aprovar' || interaction.customId === 'recusar') {
+    // ===== APROVAR / RECUSAR =====
+    if (i.customId === 'aprovar' || i.customId === 'recusar') {
 
-      await interaction.deferReply({ ephemeral: true });
+      await i.deferReply({ ephemeral: true });
 
-      const staff = interaction.guild.roles.cache.find(r => r.name === STAFF_ROLE);
-      if (!staff || !interaction.member.roles.cache.has(staff.id)) {
-        return interaction.editReply('❌ Apenas staff.');
+      const staff = getRole(i.guild, STAFF_ROLE);
+      if (!staff || !i.member.roles.cache.has(staff.id)) {
+        return i.editReply('❌ Apenas staff.');
       }
 
-      const thread = interaction.channel;
-      const userId = thread.name.replace('cap-', '');
+      const thread = i.channel;
+      const userId = thread.name.replace(PREFIX, '');
 
-      const member = await interaction.guild.members.fetch(userId).catch(()=>null);
-      const capRole = interaction.guild.roles.cache.find(r => r.name === CAP_ROLE);
+      const member = await i.guild.members.fetch(userId).catch(() => null);
+      const capRole = getRole(i.guild, CAP_ROLE);
 
-      if (interaction.customId === 'aprovar') {
+      if (i.customId === 'aprovar') {
 
         if (member && capRole) {
-          await member.roles.add(capRole).catch(()=>{});
+          await member.roles.add(capRole).catch(() => {});
         }
 
         eco.addMoney(userId, 5000);
 
-        await interaction.editReply('✅ Aprovado!');
-        setTimeout(() => thread.delete().catch(()=>{}), 3000);
+        if (member) {
+          member.send('✅ Você foi aprovado como Capitão!').catch(() => {});
+        }
+
+        await i.editReply('✅ Aprovado.');
+
+        setTimeout(() => thread.delete().catch(() => {}), 3000);
       }
 
-      if (interaction.customId === 'recusar') {
+      if (i.customId === 'recusar') {
 
-        eco.removeMoney(userId, 1000);
+        if (member) {
+          member.send('❌ Sua aplicação foi recusada.').catch(() => {});
+        }
 
-        await interaction.editReply('❌ Recusado!');
-        setTimeout(() => thread.delete().catch(()=>{}), 3000);
+        await i.editReply('❌ Recusado.');
+
+        setTimeout(() => thread.delete().catch(() => {}), 3000);
       }
     }
   }
 
-  // ================= MODAL =================
-  if (interaction.isModalSubmit()) {
+  // ===== MODAIS =====
+  if (i.isModalSubmit()) {
 
     // ===== PARTE 1 =====
-    if (interaction.customId === 'form1') {
+    if (i.customId === 'form1') {
 
       const dados = {
-        nome: interaction.fields.getTextInputValue('nome'),
-        idade: interaction.fields.getTextInputValue('idade'),
-        bounty: interaction.fields.getTextInputValue('bounty'),
-        tempo: interaction.fields.getTextInputValue('tempo'),
-        cap: interaction.fields.getTextInputValue('cap')
+        nome: i.fields.getTextInputValue('nome'),
+        idade: i.fields.getTextInputValue('idade'),
+        bounty: i.fields.getTextInputValue('bounty'),
+        tempo: i.fields.getTextInputValue('tempo'),
+        cap: i.fields.getTextInputValue('cap')
       };
 
-      cache.set(interaction.user.id, dados);
+      cache.set(i.user.id, dados);
 
       const modal2 = new ModalBuilder()
         .setCustomId('form2')
@@ -153,72 +183,63 @@ client.on('interactionCreate', async (interaction) => {
 
       modal2.addComponents(
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('motivo')
-            .setLabel('Por que quer ser capitão?')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('motivo').setLabel('Por que quer ser capitão?').setStyle(TextInputStyle.Paragraph).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('crew')
-            .setLabel('O que faria pela crew?')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('crew').setLabel('O que faria pela crew?').setStyle(TextInputStyle.Paragraph).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('inativos')
-            .setLabel('Como lidaria com inativos?')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('inativos').setLabel('Como lidaria com inativos?').setStyle(TextInputStyle.Paragraph).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('problemas')
-            .setLabel('Já teve problemas com staff?')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('problemas').setLabel('Já teve problemas com staff?').setStyle(TextInputStyle.Paragraph).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('disp')
-            .setLabel('Disponibilidade diária')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
+          new TextInputBuilder().setCustomId('disp').setLabel('Disponibilidade diária').setStyle(TextInputStyle.Short).setRequired(true)
         )
       );
 
-      return interaction.showModal(modal2);
+      return i.showModal(modal2);
     }
 
     // ===== PARTE 2 =====
-    if (interaction.customId === 'form2') {
+    if (i.customId === 'form2') {
 
-      const p1 = cache.get(interaction.user.id);
+      const p1 = cache.get(i.user.id);
       if (!p1) {
-        return interaction.reply({ content: 'Erro.', ephemeral: true });
+        return i.reply({ content: 'Erro no formulário.', ephemeral: true });
       }
 
       const p2 = {
-        motivo: interaction.fields.getTextInputValue('motivo'),
-        crew: interaction.fields.getTextInputValue('crew'),
-        inativos: interaction.fields.getTextInputValue('inativos'),
-        problemas: interaction.fields.getTextInputValue('problemas'),
-        disp: interaction.fields.getTextInputValue('disp')
+        motivo: i.fields.getTextInputValue('motivo'),
+        crew: i.fields.getTextInputValue('crew'),
+        inativos: i.fields.getTextInputValue('inativos'),
+        problemas: i.fields.getTextInputValue('problemas'),
+        disp: i.fields.getTextInputValue('disp')
       };
 
-      const thread = await interaction.channel.threads.create({
-        name: `cap-${interaction.user.id}`,
-        type: ChannelType.PrivateThread
+      const thread = await i.channel.threads.create({
+        name: `${PREFIX}${i.user.id}`,
+        type: ChannelType.PrivateThread,
+        invitable: false
       });
 
-      await thread.members.add(interaction.user.id);
+      // 🔥 ADICIONA BOT NO TÓPICO (CORRIGE BUG)
+      await thread.members.add(client.user.id);
+
+      await thread.members.add(i.user.id);
+
+      const staff = getRole(i.guild, STAFF_ROLE);
+      if (staff) {
+        for (const m of staff.members.values()) {
+          await thread.members.add(m.id).catch(() => {});
+        }
+      }
 
       const embed = new EmbedBuilder()
         .setColor('#22c55e')
-        .setTitle('📋 Aplicação Capitão')
-        .setDescription(`<@${interaction.user.id}>`)
+        .setTitle('📋 Aplicação — Capitão')
+        .setDescription(`👤 <@${i.user.id}>`)
         .addFields(
           { name: 'Nome', value: p1.nome },
           { name: 'Idade', value: p1.idade },
@@ -232,28 +253,20 @@ client.on('interactionCreate', async (interaction) => {
           { name: 'Disponibilidade', value: p2.disp }
         );
 
-      const botoes = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('aprovar')
-          .setLabel('Aprovar')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('recusar')
-          .setLabel('Recusar')
-          .setStyle(ButtonStyle.Danger)
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('aprovar').setLabel('Aprovar').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('recusar').setLabel('Recusar').setStyle(ButtonStyle.Danger)
       );
 
-      await thread.send({ embeds: [embed], components: [botoes] });
+      await thread.send({ embeds: [embed], components: [row] });
+      await thread.send({ content: formatar(p1, p2) });
 
-      cache.delete(interaction.user.id);
+      cache.delete(i.user.id);
+      setCooldown(i.user.id);
 
-      await interaction.reply({
-        content: '✅ Aplicação enviada!',
-        ephemeral: true
-      });
+      await i.reply({ content: '✅ Aplicação enviada!', ephemeral: true });
     }
   }
-
 });
 
 };
